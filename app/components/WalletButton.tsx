@@ -8,23 +8,8 @@ import {
 
 export default function WalletButton() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const { connect, connectors, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
-
-  const metaMaskConnector = connectors.find(
-    (connector) => connector.id === "metaMask"
-  );
-
-  function handleConnect() {
-    if (!metaMaskConnector) {
-      alert(
-        "MetaMask connector is not available. Please make sure MetaMask is installed."
-      );
-      return;
-    }
-
-    connect({ connector: metaMaskConnector });
-  }
 
   if (isConnected && address) {
     return (
@@ -37,13 +22,30 @@ export default function WalletButton() {
     );
   }
 
+  function handleConnect(connector: (typeof connectors)[number]) {
+    connect({ connector });
+  }
+
   return (
-    <button
-      onClick={handleConnect}
-      disabled={isPending}
-      className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {isPending ? "Connecting..." : "Connect Wallet"}
-    </button>
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex gap-2">
+        {connectors.map((connector) => (
+          <button
+            key={connector.uid}
+            onClick={() => handleConnect(connector)}
+            disabled={isPending}
+            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? "Connecting..." : connector.name}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <p className="max-w-xs text-right text-xs text-red-400">
+          {error.message}
+        </p>
+      )}
+    </div>
   );
 }
