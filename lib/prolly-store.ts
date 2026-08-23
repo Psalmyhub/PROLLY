@@ -1,5 +1,10 @@
+export type UserRole = "user" | "sponsor" | "admin";
+
+export type SponsorCategory = "task" | "private" | "manual";
+
 export type Participant = {
   id: string;
+  walletAddress?: string;
   username: string;
   joinedAt: number;
 };
@@ -8,16 +13,34 @@ export type Prolly = {
   id: string;
   title: string;
   description: string;
+
+  creatorUsername: string;
+  creatorRole: "admin" | "sponsor";
+
   entryAmount: number;
   participants: number;
-  participantList?: Participant[];  
-maxParticipants: number;
+  participantList?: Participant[];
+
+  maxParticipants: number;
   winners: number;
+
   closingMode: "participants" | "time" | "either";
   durationMinutes?: number;
   createdAt?: number;
   closesAt?: number;
+
   image?: string;
+
+  sponsorCategory?: SponsorCategory;
+
+  taskInstructions?: string;
+  taskPreference?: string;
+  taskReferenceImage?: string;
+
+  accessCode?: string;
+  accessToken?: string;
+
+  manualOnly?: boolean;
 };
 
 export const STORAGE_KEY = "prolly-items";
@@ -28,6 +51,8 @@ export const defaultProllys: Prolly[] = [
     title: "Lucky 10",
     description:
       "Join this Prolly for a chance to be randomly selected as one of the winners.",
+    creatorUsername: "boma",
+    creatorRole: "admin",
     entryAmount: 1,
     participants: 24,
     maxParticipants: 100,
@@ -39,6 +64,8 @@ export const defaultProllys: Prolly[] = [
     title: "Community Reward",
     description:
       "A simple transparent Prolly where winners are selected randomly.",
+    creatorUsername: "boma",
+    creatorRole: "admin",
     entryAmount: 2,
     participants: 12,
     maxParticipants: 50,
@@ -64,7 +91,13 @@ export function loadProllys(): Prolly[] {
   }
 
   try {
-    return JSON.parse(saved) as Prolly[];
+    const parsed = JSON.parse(saved) as Prolly[];
+
+    return parsed.map((prolly) => ({
+      ...prolly,
+      creatorUsername: prolly.creatorUsername || "boma",
+      creatorRole: prolly.creatorRole || "admin",
+    }));
   } catch {
     saveProllys(defaultProllys);
     return defaultProllys;

@@ -7,6 +7,11 @@ import {
   saveProllys,
   type Prolly,
 } from "@/lib/prolly-store";
+import {
+  loadSponsorApplications,
+  updateSponsorApplicationStatus,
+  type SponsorApplication,
+} from "@/lib/role-store";
 
 type ProllyStatus = "active" | "closed" | "cancelled";
 
@@ -50,6 +55,9 @@ export default function AdminPage() {
   const [statuses, setStatuses] = useState<Record<string, ProllyStatus>>({});
   const [showCreate, setShowCreate] = useState(false);
 
+  const [sponsorApplications, setSponsorApplications] =
+    useState<SponsorApplication[]>([]);
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [entryFee, setEntryFee] = useState("1");
@@ -61,6 +69,7 @@ export default function AdminPage() {
   const [duration, setDuration] = useState("60");
 
   useEffect(() => {
+  setSponsorApplications(loadSponsorApplications());
     const stored = loadProllys();
 
     if (stored.length === 0) {
@@ -133,10 +142,14 @@ export default function AdminPage() {
     }
 
     const newProlly: Prolly = {
-      id: `${Date.now()}-${name.toLowerCase().replace(/\s+/g, "-") || "prolly"}`,
-      title: name.trim(),
-      description: description.trim(),
-      entryAmount: fee,
+  id: `${Date.now()}-${name.toLowerCase().replace(/\s+/g, "-") || "prolly"}`,
+  title: name.trim(),
+  description: description.trim(),
+
+  creatorUsername: "boma",
+creatorRole: "admin",
+
+  entryAmount: fee,
       participants: 0,
       maxParticipants: max,
       winners: winnerCount,
@@ -145,6 +158,7 @@ export default function AdminPage() {
         closingMode === "participants" ? undefined : Number(duration) || 60,
       createdAt: Date.now(),
       closesAt:
+
         closingMode === "participants"
           ? undefined
           : Date.now() + (Number(duration) || 60) * 60 * 1000,
@@ -183,7 +197,37 @@ export default function AdminPage() {
       [prolly.id]: "closed",
     }));
   }
+function approveSponsor(application: SponsorApplication) {
+  updateSponsorApplicationStatus(
+    application.walletAddress,
+    "approved",
+  );
 
+  setSponsorApplications((current) =>
+    current.map((item) =>
+      item.walletAddress.toLowerCase() ===
+      application.walletAddress.toLowerCase()
+        ? { ...item, status: "approved" }
+        : item,
+    ),
+  );
+}
+
+function rejectSponsor(application: SponsorApplication) {
+  updateSponsorApplicationStatus(
+    application.walletAddress,
+    "rejected",
+  );
+
+  setSponsorApplications((current) =>
+    current.map((item) =>
+      item.walletAddress.toLowerCase() ===
+      application.walletAddress.toLowerCase()
+        ? { ...item, status: "rejected" }
+        : item,
+    ),
+  );
+}
   function deleteProlly(prolly: Prolly) {
     if (
       !confirm(
@@ -291,7 +335,83 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
+{/* SPONSOR APPLICATIONS */}
+<div className="mt-12 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
+  <div className="border-b border-zinc-800 px-6 py-5">
+    <h2 className="text-xl font-bold">
+      Sponsor Applications
+    </h2>
 
+    <p className="mt-2 text-sm text-zinc-500">
+      Review and approve qualified sponsors.
+    </p>
+  </div>
+
+  {sponsorApplications.length === 0 ? (
+    <div className="px-6 py-12 text-center">
+      <p className="text-zinc-500">
+        No sponsor applications yet.
+      </p>
+    </div>
+  ) : (
+    <div className="divide-y divide-zinc-800">
+      {sponsorApplications.map((application) => (
+        <div
+          key={application.walletAddress}
+          className="p-6"
+        >
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold">
+                {application.name}
+              </h3>
+
+              <p className="mt-2 break-all text-sm text-zinc-500">
+                {application.walletAddress}
+              </p>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                {application.description}
+              </p>
+
+              {application.website && (
+                <p className="mt-2 text-sm text-violet-400">
+                  {application.website}
+                </p>
+              )}
+
+              <p className="mt-3 text-xs uppercase tracking-wider text-zinc-600">
+                Status: {application.status}
+              </p>
+            </div>
+
+            {application.status === "pending" && (
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={() =>
+                    approveSponsor(application)
+                  }
+                  className="rounded-full bg-green-500 px-5 py-2 text-sm font-semibold text-black hover:bg-green-400"
+                >
+                  Approve
+                </button>
+
+                <button
+                  onClick={() =>
+                    rejectSponsor(application)
+                  }
+                  className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
         {/* PROLLY TABLE */}
         <div className="mt-12 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
           <div className="border-b border-zinc-800 px-6 py-5">
