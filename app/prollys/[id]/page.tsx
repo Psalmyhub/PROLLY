@@ -1,7 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAccount, useConnect } from "wagmi";
 
 const prollyData = {
   "1": {
@@ -38,10 +39,28 @@ const prollyData = {
 
 export default function ProllyDetailsPage() {
   const params = useParams();
+  const [mounted, setMounted] = useState(false);
+
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [joined, setJoined] = useState(false);
 
   const id = String(params.id);
-  const prolly = prollyData[id as keyof typeof prollyData];
+const prolly = prollyData[id as keyof typeof prollyData];
+
+if (!mounted) {
+  return (
+    <main className="min-h-screen bg-zinc-950 text-white">
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-zinc-400">Loading...</p>
+      </div>
+    </main>
+  );
+}
 
   if (!prolly) {
     return (
@@ -66,8 +85,22 @@ export default function ProllyDetailsPage() {
   const estimatedWinnerPrize = prizePool / prolly.winners;
 
   function handleJoin() {
-    setJoined(true);
+  if (!isConnected) {
+    const connector = connectors.find(
+      (item) => item.name === "MetaMask",
+    );
+
+    if (!connector) {
+      alert("MetaMask is not available.");
+      return;
+    }
+
+    connect({ connector });
+    return;
   }
+
+  setJoined(true);
+}
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
@@ -173,12 +206,18 @@ export default function ProllyDetailsPage() {
 
             {/* Join */}
             <button
-              onClick={handleJoin}
-              disabled={joined}
-              className="mt-8 w-full rounded-full bg-violet-500 py-4 text-lg font-semibold hover:bg-violet-400 disabled:cursor-not-allowed disabled:bg-emerald-500"
-            >
-              {joined ? "Joined Prolly ✓" : `Join Prolly — $${prolly.entryAmount}`}
-            </button>
+  onClick={handleJoin}
+  disabled={joined || isPending}
+  className="mt-8 w-full rounded-full bg-violet-500 py-4 text-lg font-semibold hover:bg-violet-400 disabled:cursor-not-allowed disabled:bg-emerald-500"
+>
+  {joined
+    ? "Joined Prolly ✓"
+    : isPending
+      ? "Connecting..."
+      : isConnected
+        ? `Join Prolly — $${prolly.entryAmount}`
+        : "Connect wallet to join"}
+</button>
 
             <p className="mt-4 text-center text-xs text-zinc-600">
               Prototype mode — no real payment or blockchain transaction.

@@ -20,9 +20,15 @@ export default function SponsorPage() {
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
   const [message, setMessage] = useState("");
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    if (!address) {
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+useEffect(() => {
+  if (!address) {
+
       setRole("user");
       return;
     }
@@ -70,8 +76,19 @@ export default function SponsorPage() {
     );
   }
 
+  if (!mounted) {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
+      <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
+        <p className="text-zinc-400">Loading...</p>
+      </div>
+    </main>
+  );
+}
+
+return (
+  <main className="min-h-screen bg-zinc-950 text-white">
+
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
           <a

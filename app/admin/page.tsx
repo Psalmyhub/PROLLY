@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAccount } from "wagmi";
 import {
   defaultProllys,
   loadProllys,
   saveProllys,
   type Prolly,
 } from "@/lib/prolly-store";
+
 import {
+ getRole,
   loadSponsorApplications,
   updateSponsorApplicationStatus,
   type SponsorApplication,
 } from "@/lib/role-store";
+const ADMIN_ADDRESS =
+  process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS;
 
 type ProllyStatus = "active" | "closed" | "cancelled";
 
@@ -51,12 +56,17 @@ function saveStatus(id: string, status: ProllyStatus) {
 }
 
 export default function AdminPage() {
-  const [prollys, setProllys] = useState<Prolly[]>([]);
-  const [statuses, setStatuses] = useState<Record<string, ProllyStatus>>({});
-  const [showCreate, setShowCreate] = useState(false);
+  const { address, isConnected } = useAccount();
 
-  const [sponsorApplications, setSponsorApplications] =
-    useState<SponsorApplication[]>([]);
+  const [prollys, setProllys] = useState<Prolly[]>([]);
+const [isAdmin, setIsAdmin] = useState(false);
+const [mounted, setMounted] = useState(false);
+  const [statuses, setStatuses] = useState<Record<string, ProllyStatus>>({});
+  const [showCreate, setShowCreate] = useState
+(false);
+const [sponsorApplications, setSponsorApplications] = useState<
+  SponsorApplication[]
+>([]);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -69,8 +79,11 @@ export default function AdminPage() {
   const [duration, setDuration] = useState("60");
 
   useEffect(() => {
-  setSponsorApplications(loadSponsorApplications());
-    const stored = loadProllys();
+  setMounted(true);
+
+  setIsAdmin(getRole(address, ADMIN_ADDRESS) === "admin");
+
+  const stored = loadProllys();
 
     if (stored.length === 0) {
       saveProllys(defaultProllys);
@@ -86,35 +99,81 @@ export default function AdminPage() {
     });
 
     setStatuses(statusMap);
-  }, []);
+    setSponsorApplications(loadSponsorApplications());
+  }, [address]);
 
-  const stats = useMemo(() => {
-    const active = prollys.filter(
-      (p) => (statuses[p.id] || "active") === "active",
-    ).length;
+const stats = useMemo(() => {
+  const active = prollys.filter(
+    (p) => (statuses[p.id] || "active") === "active",
+  ).length;
 
-    const closed = prollys.filter(
-      (p) => (statuses[p.id] || "active") === "closed",
-    ).length;
+  const closed = prollys.filter(
+    (p) => (statuses[p.id] || "active") === "closed",
+  ).length;
 
-    const totalParticipants = prollys.reduce(
-      (sum, p) => sum + p.participants,
-      0,
+  const totalParticipants = prollys.reduce(
+    (sum, p) => sum + p.participants,
+    0,
+  );
+
+  const totalPool = prollys.reduce(
+    (sum, p) => sum + p.entryAmount * p.participants,
+    0,
+  );
+
+  return {
+    total: prollys.length,
+    active,
+    closed,
+    totalParticipants,
+    totalPool,
+  };
+}, [prollys, statuses]);
+
+if (!mounted) {
+  return (
+    <main className="min-h-screen bg-zinc-950 text-white">
+      <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
+        <p className="text-zinc-400">Loading...</p>
+      </div>
+    </main>
+  );
+}
+
+
+    if (!isConnected) {
+    return (
+      <main className="min-h-screen bg-zinc-950 text-white">
+        <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
+            <h1 className="text-2xl font-bold">
+              Admin access required
+            </h1>
+            <p className="mt-3 text-zinc-400">
+              Connect your admin wallet to continue.
+            </p>
+          </div>
+        </div>
+      </main>
     );
+  }
 
-    const totalPool = prollys.reduce(
-      (sum, p) => sum + p.entryAmount * p.participants,
-      0,
+  if (!isAdmin) {
+    return (
+      <main className="min-h-screen bg-zinc-950 text-white">
+        <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
+          <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-8 text-center">
+            <h1 className="text-2xl font-bold">
+              Access denied
+            </h1>
+            <p className="mt-3 text-zinc-400">
+              This wallet does not have administrator privileges.
+            </p>
+          </div>
+        </div>
+      </main>
     );
-
-    return {
-      total: prollys.length,
-      active,
-      closed,
-      totalParticipants,
-      totalPool,
-    };
-  }, [prollys, statuses]);
+  }
 
   function handleCreate() {
     const fee = Number(entryFee);
@@ -228,39 +287,48 @@ function rejectSponsor(application: SponsorApplication) {
     ),
   );
 }
-  function deleteProlly(prolly: Prolly) {
-    if (
-      !confirm(
-        `Delete "${prolly.title || "Untitled Prolly"}"? This cannot be undone.`,
-      )
-    ) {
-      return;
-    }
+    
+function handleSponsorDecision(
+  walletAddress: string,
+  status: "approved" | "rejected",
+) {
+  updateSponsorApplicationStatus(walletAddress, status);
+  setSponsorApplications(loadSponsorApplications());
+}
 
-    const updated = prollys.filter((item) => item.id !== prolly.id);
-
-    saveProllys(updated);
-    localStorage.removeItem(`prolly-participants-${prolly.id}`);
-
-    setProllys(updated);
-
-    setStatuses((current) => {
-      const copy = { ...current };
-      delete copy[prolly.id];
-      return copy;
-    });
-
-    const savedStatuses = localStorage.getItem("prolly-statuses");
-
-    if (savedStatuses) {
-      try {
-        const parsed = JSON.parse(savedStatuses);
-        delete parsed[prolly.id];
-        localStorage.setItem("prolly-statuses", JSON.stringify(parsed));
-      } catch {}
-    }
+function deleteProlly(prolly: Prolly) {
+  if (
+    !confirm(
+      `Delete "${prolly.title || "Untitled Prolly"}"? This cannot be undone.`,
+    )
+  ) {
+    return;
   }
 
+  const updated = prollys.filter((item) => item.id !== prolly.id);
+
+  saveProllys(updated);
+  localStorage.removeItem(`prolly-participants-${prolly.id}`);
+
+  setProllys(updated);
+
+  setStatuses((current) => {
+    const copy = { ...current };
+    delete copy[prolly.id];
+    return copy;
+  });
+
+  const savedStatuses = localStorage.getItem("prolly-statuses");
+
+  if (savedStatuses) {
+    try {
+      const parsed = JSON.parse(savedStatuses);
+      delete parsed[prolly.id];
+      localStorage.setItem("prolly-statuses", JSON.stringify(parsed));
+    } catch {}
+  }
+}
+      
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
@@ -335,16 +403,30 @@ function rejectSponsor(application: SponsorApplication) {
             </p>
           </div>
         </div>
-{/* SPONSOR APPLICATIONS */}
+     
+ {/* SPONSOR APPLICATIONS */}
 <div className="mt-12 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
   <div className="border-b border-zinc-800 px-6 py-5">
-    <h2 className="text-xl font-bold">
-      Sponsor Applications
-    </h2>
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <h2 className="text-xl font-bold">
+          Sponsor Applications
+        </h2>
 
-    <p className="mt-2 text-sm text-zinc-500">
-      Review and approve qualified sponsors.
-    </p>
+        <p className="mt-1 text-sm text-zinc-500">
+          Approve users who qualify to become Prolly sponsors.
+        </p>
+      </div>
+
+      <span className="rounded-full bg-violet-500/10 px-3 py-1 text-sm font-semibold text-violet-400">
+        {
+          sponsorApplications.filter(
+            (application) => application.status === "pending",
+          ).length
+        }{" "}
+        pending
+      </span>
+    </div>
   </div>
 
   {sponsorApplications.length === 0 ? (
@@ -360,15 +442,25 @@ function rejectSponsor(application: SponsorApplication) {
           key={application.walletAddress}
           className="p-6"
         >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h3 className="text-xl font-semibold">
-                {application.name}
-              </h3>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h3 className="text-xl font-bold">
+                  {application.name}
+                </h3>
 
-              <p className="mt-2 break-all text-sm text-zinc-500">
-                {application.walletAddress}
-              </p>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    application.status === "pending"
+                      ? "bg-yellow-500/10 text-yellow-400"
+                      : application.status === "approved"
+                        ? "bg-green-500/10 text-green-400"
+                        : "bg-red-500/10 text-red-400"
+                  }`}
+                >
+                  {application.status}
+                </span>
+              </div>
 
               <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
                 {application.description}
@@ -380,8 +472,15 @@ function rejectSponsor(application: SponsorApplication) {
                 </p>
               )}
 
-              <p className="mt-3 text-xs uppercase tracking-wider text-zinc-600">
-                Status: {application.status}
+              <p className="mt-3 break-all text-xs text-zinc-600">
+                Wallet: {application.walletAddress}
+              </p>
+
+              <p className="mt-1 text-xs text-zinc-600">
+                Applied:{" "}
+                {new Date(
+                  application.createdAt,
+                ).toLocaleString()}
               </p>
             </div>
 
@@ -389,16 +488,22 @@ function rejectSponsor(application: SponsorApplication) {
               <div className="flex shrink-0 gap-2">
                 <button
                   onClick={() =>
-                    approveSponsor(application)
+                    handleSponsorDecision(
+                      application.walletAddress,
+                      "approved",
+                    )
                   }
                   className="rounded-full bg-green-500 px-5 py-2 text-sm font-semibold text-black hover:bg-green-400"
                 >
-                  Approve
+                  Approve Sponsor
                 </button>
 
                 <button
                   onClick={() =>
-                    rejectSponsor(application)
+                    handleSponsorDecision(
+                      application.walletAddress,
+                      "rejected",
+                    )
                   }
                   className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10"
                 >
@@ -412,7 +517,9 @@ function rejectSponsor(application: SponsorApplication) {
     </div>
   )}
 </div>
-        {/* PROLLY TABLE */}
+
+
+       {/* PROLLY TABLE */}
         <div className="mt-12 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
           <div className="border-b border-zinc-800 px-6 py-5">
             <h2 className="text-xl font-bold">Your Prollys</h2>
