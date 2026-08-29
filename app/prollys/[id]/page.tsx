@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
@@ -38,41 +39,28 @@ const prollyData = {
 };
 
 export default function ProllyDetailsPage() {
-  const params = useParams();
-  const [mounted, setMounted] = useState(false);
+    const params = useParams();
 
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   const [joined, setJoined] = useState(false);
 
   const id = String(params.id);
 const prolly = prollyData[id as keyof typeof prollyData];
 
-if (!mounted) {
-  return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-zinc-400">Loading...</p>
-      </div>
-    </main>
-  );
-}
 
   if (!prolly) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
         <div className="text-center">
           <h1 className="text-4xl font-bold">Prolly not found</h1>
-          <a
-            href="/prollys"
-            className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold"
-          >
-            Explore Prollys
-          </a>
+          <Link
+  href="/prollys"
+  className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold"
+>
+  Explore Prollys
+</Link>
         </div>
       </main>
     );
@@ -106,16 +94,16 @@ if (!mounted) {
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <a href="/" className="text-2xl font-bold tracking-tight">
+          <Link href="/" className="text-2xl font-bold tracking-tight">
             PROLLY<span className="text-violet-400">.</span>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/prollys"
             className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
           >
             Explore Prollys
-          </a>
+          </Link>
         </div>
       </nav>
 

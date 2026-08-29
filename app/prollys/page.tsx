@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   loadProllys,
   saveProllys,
@@ -9,17 +10,11 @@ import {
   type Prolly,
 } from "@/lib/prolly-store";
 import { loadProfile, type UserProfile } from "@/lib/profile-store";
+
 export default function ProllysPage() {
-  const [prollys, setProllys] = useState<Prolly[]>([]);
+    const [prollys, setProllys] = useState<Prolly[]>(() => loadProllys());
   const [selectedProlly, setSelectedProlly] = useState<Prolly | null>(null);
-const [profile, setProfile] = useState<UserProfile | null>(null);
-  // Load Prollys when the Explore page opens
-  useEffect(() => {
-    const stored = loadProllys();
-    setProllys(stored);
-const savedProfile = loadProfile();
-  setProfile(savedProfile);
-  }, []);
+  const [profile] = useState<UserProfile | null>(() => loadProfile());
 
   // Check for expired/full Prollys periodically
   useEffect(() => {
@@ -92,12 +87,12 @@ const savedProfile = loadProfile();
       {/* NAVIGATION */}
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <a
-            href="/"
-            className="text-2xl font-bold tracking-tight"
-          >
-            PROLLY<span className="text-violet-400">.</span>
-          </a>
+          <Link
+  href="/"
+  className="text-2xl font-bold tracking-tight"
+>
+  PROLLY<span className="text-violet-400">.</span>
+</Link>
 
           <a
             href="/admin"

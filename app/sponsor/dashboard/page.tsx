@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { getRole } from "@/lib/role-store";
 
@@ -8,16 +7,10 @@ const ADMIN_ADDRESS =
   process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS;
 
 export default function SponsorDashboard() {
-  const { address } = useAccount();
-  const [approved, setApproved] = useState(false);
+    const { address } = useAccount();
 
-  useEffect(() => {
-    if (!address) return;
-
-    setApproved(
-      getRole(address, ADMIN_ADDRESS) === "sponsor",
-    );
-  }, [address]);
+  const approved =
+    !!address && getRole(address, ADMIN_ADDRESS) === "sponsor";
 
   if (!approved) {
     return (

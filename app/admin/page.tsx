@@ -1,6 +1,9 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useAccount } from "wagmi";
 import {
   defaultProllys,
@@ -21,6 +24,10 @@ const ADMIN_ADDRESS =
 type ProllyStatus = "active" | "closed" | "cancelled";
 
 function getStatus(prolly: Prolly): ProllyStatus {
+  if (typeof window === "undefined") {
+    return "active";
+  }
+
   const statuses = localStorage.getItem("prolly-statuses");
 
   if (statuses) {
@@ -58,15 +65,41 @@ function saveStatus(id: string, status: ProllyStatus) {
 export default function AdminPage() {
   const { address, isConnected } = useAccount();
 
-  const [prollys, setProllys] = useState<Prolly[]>([]);
-const [isAdmin, setIsAdmin] = useState(false);
-const [mounted, setMounted] = useState(false);
-  const [statuses, setStatuses] = useState<Record<string, ProllyStatus>>({});
-  const [showCreate, setShowCreate] = useState
-(false);
-const [sponsorApplications, setSponsorApplications] = useState<
-  SponsorApplication[]
->([]);
+   const [prollys, setProllys] = useState<Prolly[]>(() => {
+    const stored = loadProllys();
+
+    if (stored.length === 0) {
+      saveProllys(defaultProllys);
+      return defaultProllys;
+    }
+
+    return stored;
+  });
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const [statuses, setStatuses] = useState<Record<string, ProllyStatus>>(
+    () => {
+      const stored = loadProllys();
+
+      if (stored.length === 0) {
+        return Object.fromEntries(
+          defaultProllys.map((prolly) => [prolly.id, getStatus(prolly)]),
+        );
+      }
+
+      return Object.fromEntries(
+        stored.map((prolly) => [prolly.id, getStatus(prolly)]),
+      );
+    },
+  );
+
+  const [showCreate, setShowCreate] = useState(false);
+
+  const [sponsorApplications, setSponsorApplications] = useState<
+    SponsorApplication[]
+  >(() => loadSponsorApplications());
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -79,28 +112,14 @@ const [sponsorApplications, setSponsorApplications] = useState<
   const [duration, setDuration] = useState("60");
 
   useEffect(() => {
-  setMounted(true);
+    setMounted(true);
+  }, []);
 
-  setIsAdmin(getRole(address, ADMIN_ADDRESS) === "admin");
-
-  const stored = loadProllys();
-
-    if (stored.length === 0) {
-      saveProllys(defaultProllys);
-      setProllys(defaultProllys);
-    } else {
-      setProllys(stored);
-    }
-
-    const statusMap: Record<string, ProllyStatus> = {};
-
-    stored.forEach((prolly) => {
-      statusMap[prolly.id] = getStatus(prolly);
-    });
-
-    setStatuses(statusMap);
-    setSponsorApplications(loadSponsorApplications());
+  useEffect(() => {
+    setIsAdmin(getRole(address, ADMIN_ADDRESS) === "admin");
   }, [address]);
+
+  
 
 const stats = useMemo(() => {
   const active = prollys.filter(
@@ -332,18 +351,18 @@ function deleteProlly(prolly: Prolly) {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <a href="/" className="text-2xl font-bold tracking-tight">
-            PROLLY<span className="text-violet-400">.</span>
-          </a>
+  <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+    <Link href="/" className="text-2xl font-bold tracking-tight">
+      PROLLY<span className="text-violet-400">.</span>
+    </Link>
 
-          <div className="flex items-center gap-3">
-            <a
-              href="/prollys"
-              className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
-            >
-              Explore
-            </a>
+    <div className="flex items-center gap-3">
+            <Link
+  href="/prollys"
+  className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
+>
+  Explore
+</Link>
 
             <button
               onClick={() => setShowCreate(true)}
@@ -614,12 +633,12 @@ function deleteProlly(prolly: Prolly) {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <a
-                          href="/prollys"
-                          className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium hover:bg-zinc-800"
-                        >
-                          View
-                        </a>
+                        <Link
+  href="/prollys"
+  className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium hover:bg-zinc-800"
+>
+  View
+</Link>
 
                         {status === "active" && (
                           <button

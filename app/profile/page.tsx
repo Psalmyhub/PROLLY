@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   loadProfile,
@@ -13,13 +14,17 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+  const timer = setTimeout(() => {
     const saved = loadProfile();
 
     if (saved) {
       setProfile(saved);
       setUsername(saved.username);
     }
-  }, []);
+  }, 0);
+
+  return () => clearTimeout(timer);
+}, []);
 
   function handleSave() {
     const cleanUsername = username.trim().replace(/^@/, "");
@@ -63,19 +68,24 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <a href="/" className="text-2xl font-bold tracking-tight">
-            PROLLY<span className="text-violet-400">.</span>
-          </a>
+  <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+    <Link
+      href="/"
+      className="text-2xl font-bold tracking-tight"
+    >
+      PROLLY<span className="text-violet-400">.</span>
+    </Link>
 
-          <a
-            href="/prollys"
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
-          >
-            Explore
-          </a>
-        </div>
-      </nav>
+        <div className="flex items-center gap-3">
+      <Link
+        href="/prollys"
+        className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
+      >
+        Explore
+      </Link>
+    </div>
+  </div>
+</nav>
 
       <section className="mx-auto max-w-2xl px-6 py-16">
         <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">

@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import {
   getRole,
-  getSponsorApplication,
   submitSponsorApplication,
   type UserRole,
 } from "@/lib/role-store";
@@ -15,35 +15,21 @@ const ADMIN_ADDRESS =
 export default function SponsorPage() {
   const { address, isConnected } = useAccount();
 
-  const [role, setRole] = useState<UserRole>("user");
+    const [role, setRole] = useState<UserRole>(() =>
+    address ? getRole(address, ADMIN_ADDRESS) : "user",
+  );
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
   const [message, setMessage] = useState("");
-  const [mounted, setMounted] = useState(false);
+  const [mounted] = useState(true);
+
 
 useEffect(() => {
-  setMounted(true);
-}, []);
-
-useEffect(() => {
-  if (!address) {
-
-      setRole("user");
-      return;
-    }
-
-    const currentRole = getRole(address, ADMIN_ADDRESS);
-    setRole(currentRole);
-
-    const application = getSponsorApplication(address);
-
-    if (application) {
-      setName(application.name);
-      setDescription(application.description);
-      setWebsite(application.website || "");
-    }
-  }, [address]);
+  if (!address) return;
+}, [address]);useEffect(() => {
+  if (!address) return;
+}, [address]);
 
   function apply() {
     if (!address) {
@@ -91,19 +77,19 @@ return (
 
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <a
+          <Link
             href="/"
             className="text-2xl font-bold tracking-tight"
           >
             PROLLY<span className="text-violet-400">.</span>
-          </a>
+          </Link>
 
-          <a
+          <Link
             href="/prollys"
             className="rounded-full border border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-800"
           >
             Explore
-          </a>
+          </Link>
         </div>
       </nav>
 
