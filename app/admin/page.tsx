@@ -11,6 +11,7 @@ import {
   saveProllys,
   type Prolly,
 } from "@/lib/prolly-store";
+import { loadProfile } from "@/lib/profile-store";
 
 import {
  getRole,
@@ -219,12 +220,25 @@ if (!mounted) {
       return;
     }
 
+    // P0-3: creator identity now reflects the actually-connected admin
+    // wallet instead of being hardcoded. creatorRole is correctly
+    // "admin" here specifically because this function is only reachable
+    // past the isAdmin gate above -- not re-hardcoded for its own sake.
+    if (!address) {
+      alert("Connect your wallet to create a Prolly.");
+      return;
+    }
+
+    const adminProfile = loadProfile(address);
+    const creatorUsername =
+      adminProfile?.username ?? `${address.slice(0, 6)}...${address.slice(-4)}`;
+
     const newProlly: Prolly = {
   id: `${Date.now()}-${name.toLowerCase().replace(/\s+/g, "-") || "prolly"}`,
   title: name.trim(),
   description: description.trim(),
 
-  creatorUsername: "boma",
+  creatorUsername,
 creatorRole: "admin",
 
   entryAmount: fee,

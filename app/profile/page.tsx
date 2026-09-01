@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useAccount } from "wagmi";
 import {
   loadProfile,
   saveProfile,
@@ -9,24 +10,22 @@ import {
 } from "@/lib/profile-store";
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [username, setUsername] = useState("");
-  const [message, setMessage] = useState("");
+const [message, setMessage] = useState("");
 
-  useEffect(() => {
-  const timer = setTimeout(() => {
-    const saved = loadProfile();
+const { address, isConnected } = useAccount();
 
-    if (saved) {
-      setProfile(saved);
-      setUsername(saved.username);
-    }
-  }, 0);
-
-  return () => clearTimeout(timer);
-}, []);
+const profile = useMemo(
+  () => (address ? loadProfile(address) : null),
+  [address],
+);
 
   function handleSave() {
+    if (!address) {
+      setMessage("Connect your wallet before setting a username.");
+      return;
+    }
+
     const cleanUsername = username.trim().replace(/^@/, "");
 
     if (!cleanUsername) {
@@ -59,10 +58,9 @@ export default function ProfilePage() {
       updatedAt: now,
     };
 
-    saveProfile(updatedProfile);
-    setProfile(updatedProfile);
-    setUsername(cleanUsername);
-    setMessage("Profile saved successfully.");
+    saveProfile(address, updatedProfile);
+setUsername(cleanUsername);
+setMessage("Profile saved successfully.");
   }
 
   return (
@@ -111,13 +109,14 @@ export default function ProfilePage() {
 
             <input
               value={username}
+              disabled={!isConnected}
               onChange={(e) => {
                 setUsername(e.target.value);
                 setMessage("");
               }}
               placeholder="username"
               maxLength={20}
-              className="w-full bg-transparent px-2 py-3 outline-none"
+              className="w-full bg-transparent px-2 py-3 outline-none disabled:cursor-not-allowed disabled:text-zinc-600"
             />
           </div>
 
@@ -126,10 +125,15 @@ export default function ProfilePage() {
           </p>
 
           <button
+            disabled={!isConnected}
             onClick={handleSave}
-            className="mt-7 w-full rounded-full bg-violet-500 py-3 font-semibold hover:bg-violet-400"
+            className="mt-7 w-full rounded-full bg-violet-500 py-3 font-semibold hover:bg-violet-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
           >
-            {profile ? "Update Username" : "Create Profile"}
+            {!isConnected
+              ? "Connect wallet to continue"
+              : profile
+                ? "Update Username"
+                : "Create Profile"}
           </button>
 
           {message && (
@@ -145,9 +149,9 @@ export default function ProfilePage() {
           </p>
 
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Your username is currently stored locally in this browser.
-            Wallet authentication and email verification will be added
-            later.
+            Your username is tied to your connected wallet and stored
+            locally in this browser. Connecting a different wallet shows
+            that wallet&apos;s own profile.
           </p>
         </div>
       </section>

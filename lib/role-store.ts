@@ -1,3 +1,5 @@
+import { normalizeAddress } from "@/lib/wallet-identity";
+
 export type UserRole = "user" | "sponsor_pending" | "sponsor" | "admin";
 
 export type SponsorApplication = {
@@ -12,9 +14,10 @@ export type SponsorApplication = {
 const ROLE_KEY = "prolly-roles";
 const APPLICATION_KEY = "prolly-sponsor-applications";
 
-function normalize(address: string) {
-  return address.toLowerCase();
-}
+// P0-3: was a locally-duplicated normalize() identical in spirit to
+// access-control.ts's normalizeWallet() -- both now consolidated into
+// the single shared lib/wallet-identity.ts helper.
+const normalize = normalizeAddress;
 
 export function getRole(
   walletAddress: string | undefined,

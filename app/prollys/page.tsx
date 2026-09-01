@@ -3,49 +3,50 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useAccount } from "wagmi";
 import {
+  addParticipant,
+  hasReachedParticipantLimit,
+  hasWalletJoined,
   loadProllys,
   saveProllys,
   shouldCloseProlly,
   type Prolly,
 } from "@/lib/prolly-store";
-import { loadProfile, type UserProfile } from "@/lib/profile-store";
+import { loadProfile } from "@/lib/profile-store";
 
 export default function ProllysPage() {
-    const [prollys, setProllys] = useState<Prolly[]>(() => loadProllys());
-  const [selectedProlly, setSelectedProlly] = useState<Prolly | null>(null);
-  const [profile] = useState<UserProfile | null>(() => loadProfile());
+    const [prollys, setProllys] = useState<Prolly[]>([]);
+const [selectedProlly, setSelectedProlly] = useState<Prolly | null>(null);
 
-  // Check for expired/full Prollys periodically
-  useEffect(() => {
-    const checkClosedProllys = () => {
-      setProllys((current) => {
-        let changed = false;
+const { address, isConnected } = useAccount();
 
-        const updated = current.map((prolly) => {
-          if (shouldCloseProlly(prolly)) {
-            changed = true;
-          }
+const profile = address ? loadProfile(address) : null;
 
-          return prolly;
-        });
+  
 
-        if (changed) {
-          saveProllys(updated);
-        }
+  function displayName(): string {
+    if (profile?.username) {
+      return profile.username;
+    }
 
-        return updated;
-      });
-    };
+    if (address) {
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
 
-    checkClosedProllys();
+    return "anonymous";
+  }
 
-    const interval = setInterval(checkClosedProllys, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
+  
 
   function joinProlly(prolly: Prolly) {
+    // P0-1/P0-2: joining requires a connected wallet -- there is no
+    // identity to record participation against otherwise.
+    if (!isConnected || !address) {
+      alert("Connect your wallet to join a Prolly.");
+      return;
+    }
+
     // Check again immediately before joining
     if (shouldCloseProlly(prolly)) {
       alert("This Prolly is closed.");
@@ -53,18 +54,27 @@ export default function ProllysPage() {
       return;
     }
 
-    if (prolly.participants >= prolly.maxParticipants) {
+    if (hasReachedParticipantLimit(prolly)) {
       alert("This Prolly is full.");
+      setSelectedProlly(null);
+      return;
+    }
+
+    // P0-1: one wallet, one opportunity per Prolly. This is a
+    // client-side/localStorage safeguard for UX only -- it is not the
+    // authoritative enforcement of that rule. The GenLayer contract's own
+    // join() check is what ultimately has to hold once the frontend is
+    // wired to it (P0-4); clearing localStorage or switching browsers
+    // bypasses only this check, not that one.
+    if (hasWalletJoined(prolly, address)) {
+      alert("This wallet has already joined this Prolly.");
       setSelectedProlly(null);
       return;
     }
 
     const updatedProllys = prollys.map((item) =>
       item.id === prolly.id
-        ? {
-            ...item,
-            participants: item.participants + 1,
-          }
+        ? addParticipant(item, address, displayName())
         : item,
     );
 
@@ -126,10 +136,12 @@ export default function ProllysPage() {
             const pool =
               prolly.entryAmount * prolly.participants;
 
-            const isFull =
-              prolly.participants >= prolly.maxParticipants;
+            const isFull = hasReachedParticipantLimit(prolly);
 
             const isClosed = shouldCloseProlly(prolly);
+
+            const isJoined =
+  !!address && hasWalletJoined(prolly, address);
 
             return (
               <article
@@ -201,12 +213,14 @@ export default function ProllysPage() {
 
                   {/* JOIN BUTTON */}
                   <button
-                    disabled={isClosed || isFull}
+                    disabled={
+  isClosed || isFull || isJoined || !isConnected
+}
                     onClick={() =>
                       setSelectedProlly(prolly)
                     }
                     className={`mt-7 w-full rounded-full py-3 font-semibold ${
-                      isClosed || isFull
+                      isClosed || isFull || isJoined || !isConnected
                         ? "cursor-not-allowed bg-zinc-800 text-zinc-500"
                         : "bg-violet-500 hover:bg-violet-400"
                     }`}
@@ -215,7 +229,11 @@ export default function ProllysPage() {
                       ? "Prolly Closed"
                       : isFull
                         ? "Prolly Full"
-                        : "Join Prolly"}
+                        : isJoined
+                          ? "Already Joined"
+                          : !isConnected
+  ? "Connect wallet to join"
+                            : "Join Prolly"}
                   </button>
                 </div>
               </article>
@@ -304,12 +322,13 @@ export default function ProllysPage() {
             </p>
 
             <button
+              disabled={!isConnected}
               onClick={() =>
                 joinProlly(selectedProlly)
               }
-              className="mt-7 w-full rounded-full bg-violet-500 py-3 font-semibold hover:bg-violet-400"
+              className="mt-7 w-full rounded-full bg-violet-500 py-3 font-semibold hover:bg-violet-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
             >
-              Confirm & Join
+              {isConnected ? "Confirm & Join" : "Connect wallet to join"}
             </button>
 
             <button
