@@ -5,7 +5,7 @@ import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 
 export const PROLLY_CONTRACT_ADDRESS =
-  "0x64362180Ff8AF758698AA2c3F4ED3AA19b72aFB1" as Address;
+  "0xFAFA753b809B1293E2660086215634FA15Cd8E15" as Address;
 
 export type OnChainProlly = {
   id: bigint;
