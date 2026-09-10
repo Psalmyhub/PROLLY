@@ -1,6 +1,6 @@
 import { http, createConfig } from "wagmi";
 import { defineChain } from "viem";
-import { metaMask, walletConnect } from "wagmi/connectors";
+import { injected, walletConnect } from "wagmi/connectors";
 
 export const genlayerStudio = defineChain({
   id: 61999,
@@ -19,24 +19,24 @@ export const genlayerStudio = defineChain({
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
-if (!projectId) {
-  throw new Error("Missing NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in .env.local");
-}
-
 export const wagmiConfig = createConfig({
   chains: [genlayerStudio],
+
   connectors: [
-    metaMask({
-      dapp: {
-        name: "Prolly",
-        url: "http://localhost:3000",
-      },
+    injected({
+      shimDisconnect: true,
     }),
-    walletConnect({
-      projectId,
-      showQrModal: true,
-    }),
+
+    ...(projectId
+      ? [
+          walletConnect({
+            projectId,
+            showQrModal: true,
+          }),
+        ]
+      : []),
   ],
+
   transports: {
     [genlayerStudio.id]: http("https://studio.genlayer.com/api"),
   },

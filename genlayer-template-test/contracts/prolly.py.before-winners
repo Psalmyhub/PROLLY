@@ -1,0 +1,132 @@
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+
+from genlayer import *
+
+
+class Prolly(gl.Contract):
+    owner: Address
+    next_prolly_id: u256
+
+    names: TreeMap[u256, str]
+    entry_fees: TreeMap[u256, u256]
+    max_participants: TreeMap[u256, u256]
+    winner_counts: TreeMap[u256, u256]
+    participant_counts: TreeMap[u256, u256]
+    closed: TreeMap[u256, bool]
+
+    participants: TreeMap[str, bool]
+
+    def __init__(self):
+        self.owner = gl.message.sender_address
+        self.next_prolly_id = u256(1)
+
+    @gl.public.write
+    def create_prolly(
+        self,
+        name: str,
+        entry_fee: u256,
+        max_participants: u256,
+        winner_count: u256,
+    ) -> u256:
+        if self.owner != gl.message.sender_address:
+            raise Exception("Only owner can create Prolly")
+
+        if len(name.strip()) == 0:
+            raise Exception("Prolly name is required")
+
+        if entry_fee <= 0:
+            raise Exception("Entry fee must be greater than zero")
+
+        if max_participants <= 0:
+            raise Exception("Maximum participants must be greater than zero")
+
+        if winner_count <= 0:
+            raise Exception("Winner count must be greater than zero")
+
+        if winner_count > max_participants:
+            raise Exception("Winner count cannot exceed maximum participants")
+
+        prolly_id = self.next_prolly_id
+        self.next_prolly_id = prolly_id + 1
+
+        self.names[prolly_id] = name
+        self.entry_fees[prolly_id] = entry_fee
+        self.max_participants[prolly_id] = max_participants
+        self.winner_counts[prolly_id] = winner_count
+        self.participant_counts[prolly_id] = u256(0)
+        self.closed[prolly_id] = False
+
+        return prolly_id
+
+    @gl.public.write.payable
+    def join(self, prolly_id: u256, participant: str) -> None:
+        if prolly_id not in self.names:
+            raise Exception("Prolly does not exist")
+
+        if self.closed.get(prolly_id, False):
+            raise Exception("Prolly is closed")
+
+        if participant.strip() == "":
+            raise Exception("Participant is required")
+
+        participant_key = f"{prolly_id}:{participant}"
+
+        if participant_key in self.participants:
+            raise Exception("Participant already joined")
+
+        count = self.participant_counts.get(prolly_id, u256(0))
+        limit = self.max_participants[prolly_id]
+
+        if count >= limit:
+            raise Exception("Prolly is full")
+
+        entry_fee = self.entry_fees[prolly_id]
+        platform_fee = (entry_fee * 500) // 10_000
+        required_payment = entry_fee + platform_fee
+
+        if gl.message.value != required_payment:
+            raise Exception("Incorrect payment amount")
+
+        self.participants[participant_key] = True
+        self.participant_counts[prolly_id] = count + 1
+
+        if count + 1 >= limit:
+            self.closed[prolly_id] = True
+
+    @gl.public.write
+    def close_prolly(self, prolly_id: u256) -> None:
+        if self.owner != gl.message.sender_address:
+            raise Exception("Only owner can close Prolly")
+
+        if prolly_id not in self.names:
+            raise Exception("Prolly does not exist")
+
+        self.closed[prolly_id] = True
+
+    @gl.public.view
+    def has_joined(self, prolly_id: u256, participant: str) -> bool:
+        if prolly_id not in self.names:
+            return False
+
+        participant_key = f"{prolly_id}:{participant}"
+        return participant_key in self.participants
+
+    @gl.public.view
+    def get_entry_fee(self, prolly_id: u256) -> u256:
+        return self.entry_fees.get(prolly_id, u256(0))
+
+    @gl.public.view
+    def get_participant_count(self, prolly_id: u256) -> u256:
+        return self.participant_counts.get(prolly_id, u256(0))
+
+    @gl.public.view
+    def get_max_participants(self, prolly_id: u256) -> u256:
+        return self.max_participants.get(prolly_id, u256(0))
+
+    @gl.public.view
+    def get_winner_count(self, prolly_id: u256) -> u256:
+        return self.winner_counts.get(prolly_id, u256(0))
+
+    @gl.public.view
+    def is_closed(self, prolly_id: u256) -> bool:
+        return self.closed.get(prolly_id, False)

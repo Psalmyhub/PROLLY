@@ -21,6 +21,7 @@ export type Participant = {
 };
 
 export type Prolly = {
+  onChainId?: string;
   id: string;
   title: string;
   description: string;

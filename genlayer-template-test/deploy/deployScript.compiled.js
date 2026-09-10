@@ -1,95 +1,75 @@
 import { readFileSync } from "fs";
 import path from "path";
-
 import {
-  TransactionHash,
-  TransactionStatus,
-  GenLayerClient,
-  GenLayerChain,
+  TransactionStatus
 } from "genlayer-js/types";
-
-export default async function main(
-  client: GenLayerClient<GenLayerChain>,
-) {
+async function main(client) {
   const filePath = path.resolve(
     process.cwd(),
-    "contracts/prolly_v2.py",
+    "contracts/prolly_v2.py"
   );
-
   try {
     console.log("");
     console.log("======================================");
     console.log("DEPLOYING PROLLY V2");
     console.log("======================================");
     console.log("Contract file:", filePath);
-
     const contractCode = new Uint8Array(
-      readFileSync(filePath),
+      readFileSync(filePath)
     );
-
     await client.initializeConsensusSmartContract();
-
-    const deployTransaction =
-      await client.deployContract({
-        code: contractCode,
-        args: [],
-      });
-
+    const deployTransaction = await client.deployContract({
+      code: contractCode,
+      args: []
+    });
     console.log("");
     console.log(
       "Deployment transaction:",
-      deployTransaction,
+      deployTransaction
     );
-
-    const receipt =
-      await client.waitForTransactionReceipt({
-        hash: deployTransaction as TransactionHash,
-        status: TransactionStatus.ACCEPTED,
-        retries: 200,
-      });
-
-    const executionResult =
-      receipt.consensus_data
-        ?.leader_receipt?.[0]
-        ?.execution_result;
-
+    const receipt = await client.waitForTransactionReceipt({
+      hash: deployTransaction,
+      status: TransactionStatus.ACCEPTED,
+      retries: 200
+    });
+    const executionResult = receipt.consensus_data?.leader_receipt?.[0]?.execution_result;
     if (executionResult !== "SUCCESS") {
       throw new Error(
         `Deployment failed. Receipt: ${JSON.stringify(
           receipt,
           null,
-          2,
-        )}`,
+          2
+        )}`
       );
     }
-
-    const contractAddress =
-      receipt.data?.contract_address;
-
+    const contractAddress = receipt.data?.contract_address;
     console.log("");
     console.log(
-      "======================================",
+      "======================================"
     );
     console.log(
-      "PROLLY V2 DEPLOYED SUCCESSFULLY",
+      "PROLLY V2 DEPLOYED SUCCESSFULLY"
     );
     console.log(
-      "======================================",
+      "======================================"
     );
     console.log(
       "Transaction Hash:",
-      deployTransaction,
+      deployTransaction
     );
     console.log(
       "Contract Address:",
-      contractAddress,
+      contractAddress
     );
     console.log("");
   } catch (error) {
     throw new Error(
       `Error during Prolly V2 deployment: ${String(
-        error,
-      )}`,
+        error
+      )}`
     );
   }
 }
+export {
+  main as default
+};

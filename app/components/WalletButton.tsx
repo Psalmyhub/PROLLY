@@ -1,65 +1,68 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-import {
-  useAccount,
-  useConnect,
-  useDisconnect,
-} from "wagmi";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export default function WalletButton() {
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-  const timer = setTimeout(() => setMounted(true), 0);
+    setMounted(true);
+  }, []);
 
-  return () => clearTimeout(timer);
-}, []);
-
-  const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending, error } = useConnect();
-  const { disconnect } = useDisconnect();
-
+  // Keep the server render and the first client render identical.
   if (!mounted) {
-    return null;
+    return (
+      <div className="flex flex-col items-end gap-2">
+        <button
+          type="button"
+          disabled
+          className="rounded-full border border-white/10 bg-white/5 px-5 py-2 text-sm font-medium text-white/40"
+        >
+          Connect Wallet
+        </button>
+      </div>
+    );
   }
 
   if (isConnected && address) {
     return (
-      <button
-        onClick={() => disconnect()}
-        className="rounded-full border border-violet-500/40 bg-violet-500/10 px-5 py-2 text-sm font-medium text-violet-300 hover:bg-violet-500/20"
-      >
-        {address.slice(0, 6)}...{address.slice(-4)}
-      </button>
+      <div className="flex flex-col items-end gap-2">
+        <button
+          type="button"
+          onClick={() => disconnect()}
+          className="rounded-full border border-violet-500/40 bg-violet-500/10 px-5 py-2 text-sm font-medium text-violet-300 hover:bg-violet-500/20"
+        >
+          Disconnect
+        </button>
+
+        <span className="text-xs text-white/50">
+          {address.slice(0, 6)}...{address.slice(-4)}
+        </span>
+      </div>
     );
   }
 
-  function handleConnect(connector: (typeof connectors)[number]) {
-    connect({ connector });
-  }
+  const connector = connectors[0];
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <div className="flex gap-2">
-        {connectors.map((connector) => (
-          <button
-            key={connector.uid}
-            onClick={() => handleConnect(connector)}
-            disabled={isPending}
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPending ? "Connecting..." : connector.name}
-          </button>
-        ))}
-      </div>
-
-      {error && (
-        <p className="max-w-xs text-right text-xs text-red-400">
-          {error.message}
-        </p>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          if (connector) {
+            connect({ connector });
+          }
+        }}
+        disabled={!connector}
+        className="rounded-full border border-violet-500/40 bg-violet-500/10 px-5 py-2 text-sm font-medium text-violet-300 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Connect Wallet
+      </button>
     </div>
   );
 }

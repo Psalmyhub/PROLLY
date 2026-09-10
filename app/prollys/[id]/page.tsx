@@ -2,100 +2,473 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
 
-const prollyData = {
-  "1": {
-    title: "Lucky 10",
-    description:
-      "Join the pool for a chance to become one of 10 randomly selected winners. Every participant has an equal opportunity to win.",
-    entryAmount: 1,
-    participants: 74,
-    maxParticipants: 100,
-    winners: 10,
-    status: "LIVE",
-  },
-  "2": {
-    title: "Community Drop",
-    description:
-      "A community reward pool where 20 participants will be randomly selected.",
-    entryAmount: 2,
-    participants: 142,
-    maxParticipants: 200,
-    winners: 20,
-    status: "LIVE",
-  },
-  "3": {
-    title: "Big Chance",
-    description:
-      "A limited-entry Prolly with only two spots remaining before random selection.",
-    entryAmount: 5,
-    participants: 48,
-    maxParticipants: 50,
-    winners: 5,
-    status: "ENDING SOON",
-  },
-};
+import {
+  getOnChainProlly,
+  hasJoinedProlly,
+  joinProlly as joinOnChainProlly,
+  type OnChainProlly,
+} from "@/lib/genlayer";
+
+import {
+  loadProllys,
+  saveProllys,
+  type Prolly,
+} from "@/lib/prolly-store";
+
+import { loadProfile } from "@/lib/profile-store";
+
+function formatGen(value: bigint): string {
+  const whole =
+    value /
+    BigInt("1000000000000000000");
+
+  const fraction =
+    value %
+    BigInt("1000000000000000000");
+
+  if (fraction === BigInt(0)) {
+    return whole.toString();
+  }
+
+  const fractionText =
+    fraction
+      .toString()
+      .padStart(18, "0")
+      .replace(/0+$/, "");
+
+  return `${whole.toString()}.${fractionText}`;
+}
+
+function getLocalMetadata(
+  onChain: OnChainProlly,
+  localProllys: Prolly[],
+): Prolly {
+  const existing =
+    localProllys.find(
+      (item) =>
+        item.onChainId ===
+        onChain.id.toString(),
+    );
+
+  if (existing) {
+    return {
+      ...existing,
+      title:
+        existing.title ||
+        onChain.name,
+      entryAmount: Number(
+        formatGen(
+          onChain.entryFee,
+        ),
+      ),
+      participants: Number(
+        onChain.participantCount,
+      ),
+      maxParticipants: Number(
+        onChain.maxParticipants,
+      ),
+      winners: Number(
+        onChain.winnerCount,
+      ),
+    };
+  }
+
+  return {
+    id: `onchain-${onChain.id.toString()}`,
+    onChainId:
+      onChain.id.toString(),
+    title: onChain.name,
+    description: "",
+    creatorUsername: "Admin",
+    creatorRole: "admin",
+    entryAmount: Number(
+      formatGen(
+        onChain.entryFee,
+      ),
+    ),
+    participants: Number(
+      onChain.participantCount,
+    ),
+    maxParticipants: Number(
+      onChain.maxParticipants,
+    ),
+    winners: Number(
+      onChain.winnerCount,
+    ),
+    closingMode: "participants",
+    createdAt: Date.now(),
+  };
+}
 
 export default function ProllyDetailsPage() {
-    const params = useParams();
+  const params = useParams();
 
-  const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const {
+    address,
+    isConnected,
+  } = useAccount();
 
-  const [joined, setJoined] = useState(false);
+  const {
+    connect,
+    connectors,
+    isPending: isConnecting,
+  } = useConnect();
 
   const id = String(params.id);
-const prolly = prollyData[id as keyof typeof prollyData];
 
+  const [mounted, setMounted] =
+    useState(false);
 
-  if (!prolly) {
+  const [prolly, setProlly] =
+    useState<Prolly | null>(null);
+
+  const [onChain, setOnChain] =
+    useState<OnChainProlly | null>(null);
+
+  const [joined, setJoined] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [joining, setJoining] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  async function loadData() {
+    if (!mounted) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const numericId =
+        BigInt(id);
+
+      const chainData =
+        await getOnChainProlly(
+          numericId,
+        );
+
+      if (!chainData) {
+        setOnChain(null);
+        setProlly(null);
+        return;
+      }
+
+      setOnChain(chainData);
+
+      const localProllys =
+        loadProllys();
+
+      const metadata =
+        getLocalMetadata(
+          chainData,
+          localProllys,
+        );
+
+      setProlly(metadata);
+
+      const updatedLocal = [
+        ...localProllys.filter(
+          (item) =>
+            item.onChainId !== id,
+        ),
+        metadata,
+      ];
+
+      saveProllys(
+        updatedLocal,
+      );
+
+      if (address) {
+        const walletJoined =
+          await hasJoinedProlly(
+            numericId.toString(),
+            address,
+          );
+
+        setJoined(
+          walletJoined,
+        );
+      } else {
+        setJoined(false);
+      }
+    } catch (loadError) {
+      console.error(
+        "Failed to load Prolly from GenLayer:",
+        loadError,
+      );
+
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : String(loadError),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    mounted,
+    address,
+    id,
+  ]);
+
+  async function handleJoin() {
+    if (
+      joining ||
+      isConnecting
+    ) {
+      return;
+    }
+
+    if (
+      !isConnected ||
+      !address
+    ) {
+      const metaMaskConnector =
+        connectors.find(
+          (connector) =>
+            connector.name
+              .toLowerCase()
+              .includes("metamask"),
+        ) ??
+        connectors.find(
+          (connector) =>
+            connector.type ===
+            "injected",
+        );
+
+      if (!metaMaskConnector) {
+        alert(
+          "MetaMask connector not found. Please make sure MetaMask is installed and unlocked.",
+        );
+        return;
+      }
+
+      connect(
+        {
+          connector:
+            metaMaskConnector,
+        },
+        {
+          onSuccess: () => {
+            void loadData();
+          },
+          onError: (
+            connectError,
+          ) => {
+            console.error(
+              "Wallet connection failed:",
+              connectError,
+            );
+
+            alert(
+              `Wallet connection failed: ${
+                connectError instanceof Error
+                  ? connectError.message
+                  : "Unknown error"
+              }`,
+            );
+          },
+        },
+      );
+
+      return;
+    }
+
+    if (!onChain) {
+      alert(
+        "This Prolly could not be found on GenLayer.",
+      );
+      return;
+    }
+
+    if (onChain.closed) {
+      alert(
+        "This Prolly is closed.",
+      );
+      return;
+    }
+
+    if (
+      onChain.participantCount >=
+      onChain.maxParticipants
+    ) {
+      alert(
+        "This Prolly is full.",
+      );
+      return;
+    }
+
+    if (joined) {
+      alert(
+        "This wallet has already joined this Prolly.",
+      );
+      return;
+    }
+
+    try {
+      setJoining(true);
+
+      /*
+       * The contract requires the exact entry fee.
+       * No additional 5% platform fee is added here.
+       */
+      const payment =
+        onChain.entryFee;
+
+      alert(
+        `Joining with ${formatGen(payment)} GEN. Please confirm the GenLayer transaction in MetaMask.`,
+      );
+
+      await joinOnChainProlly(
+        address,
+        onChain.id.toString(),
+        payment,
+      );
+
+      alert(
+        "Join transaction submitted successfully on GenLayer.",
+      );
+
+      await loadData();
+    } catch (joinError) {
+      console.error(
+        "GenLayer join failed:",
+        joinError,
+      );
+
+      const message =
+        joinError instanceof Error
+          ? joinError.message
+          : String(joinError);
+
+      alert(
+        `Join failed: ${message}`,
+      );
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  const participantCount =
+    onChain
+      ? Number(
+          onChain.participantCount,
+        )
+      : 0;
+
+  const maxParticipants =
+    onChain
+      ? Number(
+          onChain.maxParticipants,
+        )
+      : 0;
+
+  const progress =
+    maxParticipants > 0
+      ? Math.min(
+          (participantCount /
+            maxParticipants) *
+            100,
+          100,
+        )
+      : 0;
+
+  const status = useMemo(() => {
+    if (!onChain) {
+      return "NOT FOUND";
+    }
+
+    if (onChain.closed) {
+      return "CLOSED";
+    }
+
+    if (
+      onChain.participantCount >=
+      onChain.maxParticipants
+    ) {
+      return "FULL";
+    }
+
+    return "LIVE";
+  }, [onChain]);
+
+  if (
+    !mounted ||
+    loading
+  ) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
         <div className="text-center">
-          <h1 className="text-4xl font-bold">Prolly not found</h1>
-          <Link
-  href="/prollys"
-  className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold"
->
-  Explore Prollys
-</Link>
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-violet-400" />
+
+          <p className="mt-5 text-zinc-400">
+            Loading Prolly from GenLayer...
+          </p>
         </div>
       </main>
     );
   }
 
-  const prizePool = prolly.entryAmount * prolly.participants;
-  const potentialPrizePool =
-    prolly.entryAmount * (prolly.participants + (joined ? 0 : 1));
+  if (
+    error ||
+    !prolly ||
+    !onChain
+  ) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
+        <div className="max-w-lg text-center">
+          <h1 className="text-4xl font-bold">
+            Prolly not found
+          </h1>
 
-  const estimatedWinnerPrize = prizePool / prolly.winners;
+          <p className="mt-4 text-zinc-500">
+            {error ||
+              "This Prolly does not exist on GenLayer."}
+          </p>
 
-  function handleJoin() {
-  if (!isConnected) {
-    const connector = connectors.find(
-      (item) => item.name === "MetaMask",
+          <Link
+            href="/prollys"
+            className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold hover:bg-violet-400"
+          >
+            Explore Prollys
+          </Link>
+        </div>
+      </main>
     );
-
-    if (!connector) {
-      alert("MetaMask is not available.");
-      return;
-    }
-
-    connect({ connector });
-    return;
   }
-
-  setJoined(true);
-}
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <Link href="/" className="text-2xl font-bold tracking-tight">
-            PROLLY<span className="text-violet-400">.</span>
+          <Link
+            href="/"
+            className="text-2xl font-bold tracking-tight"
+          >
+            PROLLY
+            <span className="text-violet-400">
+              .
+            </span>
           </Link>
 
           <Link
@@ -109,7 +482,6 @@ const prolly = prollyData[id as keyof typeof prollyData];
 
       <section className="mx-auto max-w-6xl px-6 py-12">
         <div className="grid gap-10 lg:grid-cols-2">
-          {/* Image placeholder */}
           <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-zinc-800 bg-zinc-900">
             <div className="text-center">
               <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-violet-500/10 text-4xl">
@@ -126,15 +498,27 @@ const prolly = prollyData[id as keyof typeof prollyData];
             </div>
           </div>
 
-          {/* Details */}
           <div className="flex flex-col justify-center">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  status === "LIVE"
+                    ? "bg-green-500/10 text-green-400"
+                    : status === "CLOSED"
+                      ? "bg-zinc-800 text-zinc-400"
+                      : "bg-yellow-500/10 text-yellow-400"
+                }`}
+              >
+                {status}
+              </span>
+
               <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
-                {prolly.status}
+                On-chain #{id}
               </span>
 
               <span className="text-sm text-zinc-500">
-                {prolly.participants}/{prolly.maxParticipants} joined
+                {participantCount}/
+                {maxParticipants} joined
               </span>
             </div>
 
@@ -143,77 +527,135 @@ const prolly = prollyData[id as keyof typeof prollyData];
             </h1>
 
             <p className="mt-6 text-lg leading-8 text-zinc-400">
-              {prolly.description}
+              {prolly.description ||
+                "Join this Prolly for a chance to become one of the randomly selected winners."}
             </p>
 
-            {/* Stats */}
+            <div className="mt-7">
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-500">
+                  Participation
+                </span>
+
+                <span className="text-zinc-300">
+                  {participantCount} /{" "}
+                  {maxParticipants}
+                </span>
+              </div>
+
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800">
+                <div
+                  className="h-full rounded-full bg-violet-500"
+                  style={{
+                    width: `${progress}%`,
+                  }}
+                />
+              </div>
+            </div>
+
             <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Entry fee</p>
+                <p className="text-sm text-zinc-500">
+                  Entry fee
+                </p>
+
                 <p className="mt-2 text-2xl font-bold">
-                  ${prolly.entryAmount}
+                  {formatGen(
+                    onChain.entryFee,
+                  )}{" "}
+                  GEN
                 </p>
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Prize pool</p>
-                <p className="mt-2 text-2xl font-bold text-violet-400">
-                  ${joined ? potentialPrizePool : prizePool}
+                <p className="text-sm text-zinc-500">
+                  Participants
+                </p>
+
+                <p className="mt-2 text-2xl font-bold">
+                  {participantCount}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Participants</p>
+                <p className="text-sm text-zinc-500">
+                  Winners
+                </p>
+
                 <p className="mt-2 text-2xl font-bold">
-                  {prolly.participants + (joined ? 1 : 0)}
+                  {onChain.winnerCount.toString()}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Winners</p>
+                <p className="text-sm text-zinc-500">
+                  Selection
+                </p>
+
                 <p className="mt-2 text-2xl font-bold">
-                  {prolly.winners}
+                  Random
                 </p>
               </div>
             </div>
 
-            {/* Estimated payout */}
-            <div className="mt-5 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5">
-              <p className="text-sm text-zinc-500">
-                Estimated prize per winner
-              </p>
-
-              <p className="mt-2 text-2xl font-bold text-violet-400">
-                ${(joined ? potentialPrizePool : prizePool) / prolly.winners}
-              </p>
-
-              <p className="mt-2 text-xs text-zinc-600">
-                Based on the current prize pool and number of winners.
-              </p>
-            </div>
-
-            {/* Join */}
             <button
-  onClick={handleJoin}
-  disabled={joined || isPending}
-  className="mt-8 w-full rounded-full bg-violet-500 py-4 text-lg font-semibold hover:bg-violet-400 disabled:cursor-not-allowed disabled:bg-emerald-500"
->
-  {joined
-    ? "Joined Prolly ✓"
-    : isPending
-      ? "Connecting..."
-      : isConnected
-        ? `Join Prolly — $${prolly.entryAmount}`
-        : "Connect wallet to join"}
-</button>
+              onClick={handleJoin}
+              disabled={
+                joined ||
+                onChain.closed ||
+                onChain.participantCount >=
+                  onChain.maxParticipants ||
+                joining ||
+                isConnecting
+              }
+              className={`mt-8 w-full rounded-full py-4 text-lg font-semibold ${
+                joined
+                  ? "bg-emerald-500 text-black"
+                  : onChain.closed ||
+                      onChain.participantCount >=
+                        onChain.maxParticipants
+                    ? "cursor-not-allowed bg-zinc-800 text-zinc-500"
+                    : "bg-violet-500 hover:bg-violet-400"
+              }`}
+            >
+              {joined
+                ? "Joined Prolly ✓"
+                : onChain.closed
+                  ? "Prolly Closed"
+                  : onChain.participantCount >=
+                      onChain.maxParticipants
+                    ? "Prolly Full"
+                    : joining
+                      ? "Joining on GenLayer..."
+                      : isConnecting
+                        ? "Connecting..."
+                        : isConnected
+                          ? `Join Prolly — ${formatGen(
+                              onChain.entryFee,
+                            )} GEN`
+                          : "Connect wallet to join"}
+            </button>
 
             <p className="mt-4 text-center text-xs text-zinc-600">
-              Prototype mode — no real payment or blockchain transaction.
+              You pay exactly the configured
+              entry fee. Entry amount does not
+              change your probability of winning.
             </p>
+
+            <div className="mt-5 rounded-2xl border border-green-500/20 bg-green-500/5 p-4">
+              <p className="text-sm font-semibold text-green-300">
+                GenLayer source of truth
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                Participants, entry fee, winner
+                count, and closed status are read
+                directly from GenLayer.
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* How it works */}
         <section className="mt-20 border-t border-zinc-800 pt-16">
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
@@ -225,8 +667,11 @@ const prolly = prollyData[id as keyof typeof prollyData];
             </h2>
 
             <p className="mt-5 leading-8 text-zinc-400">
-              Participants enter the Prolly with the required entry amount.
-              The prize pool grows as more participants join.
+              Every wallet gets one opportunity.
+              The entry amount does not give a
+              participant extra chances. After the
+              Prolly closes, the GenLayer contract
+              performs the random winner selection.
             </p>
           </div>
 
@@ -241,7 +686,9 @@ const prolly = prollyData[id as keyof typeof prollyData];
               </h3>
 
               <p className="mt-3 leading-7 text-zinc-400">
-                Enter the Prolly by paying the required entry amount.
+                Connect your wallet and pay the
+                exact configured entry fee. Your
+                wallet is recorded on-chain once.
               </p>
             </div>
 
@@ -255,8 +702,9 @@ const prolly = prollyData[id as keyof typeof prollyData];
               </h3>
 
               <p className="mt-3 leading-7 text-zinc-400">
-                The Prolly closes when its participant limit or time
-                condition is reached.
+                The Prolly automatically closes when
+                its participant limit is reached, or
+                the admin can close it manually.
               </p>
             </div>
 
@@ -270,50 +718,63 @@ const prolly = prollyData[id as keyof typeof prollyData];
               </h3>
 
               <p className="mt-3 leading-7 text-zinc-400">
-                Winners are selected through a transparent random process.
+                After closing, the GenLayer contract
+                selects the configured number of
+                unique winners.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Transparency */}
         <section className="mt-20 rounded-3xl border border-zinc-800 bg-zinc-900/40 p-8 md:p-10">
           <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
             Transparency
           </p>
 
           <h2 className="mt-4 text-2xl font-bold">
-            Everyone should be able to verify the outcome.
+            Verify the important state on GenLayer.
           </h2>
 
           <p className="mt-4 max-w-3xl leading-7 text-zinc-400">
-            Prolly is designed so that participation, closing conditions,
-            winner selection, and prize distribution can ultimately be
-            verified on-chain.
+            This page does not invent participant
+            counts or Prolly status in the browser.
+            Those values come from the deployed
+            GenLayer contract.
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl bg-zinc-950 p-5">
-              <p className="font-semibold">Open participation</p>
+              <p className="font-semibold">
+                On-chain participation
+              </p>
+
               <p className="mt-2 text-sm text-zinc-500">
-                Participants can see the important Prolly information before
-                joining.
+                The contract records each wallet
+                that joins and prevents the same
+                wallet from joining twice.
               </p>
             </div>
 
             <div className="rounded-2xl bg-zinc-950 p-5">
-              <p className="font-semibold">Random selection</p>
+              <p className="font-semibold">
+                Random selection
+              </p>
+
               <p className="mt-2 text-sm text-zinc-500">
-                Winner selection will use verifiable randomness rather than
-                manual selection.
+                Winners are finalized by the Prolly
+                contract after the Prolly closes.
               </p>
             </div>
 
             <div className="rounded-2xl bg-zinc-950 p-5">
-              <p className="font-semibold">On-chain verification</p>
+              <p className="font-semibold">
+                Equal opportunity
+              </p>
+
               <p className="mt-2 text-sm text-zinc-500">
-                The final production version will allow users to verify the
-                important results on-chain.
+                Each participant is represented once
+                in the frozen participant list used
+                for random selection.
               </p>
             </div>
           </div>

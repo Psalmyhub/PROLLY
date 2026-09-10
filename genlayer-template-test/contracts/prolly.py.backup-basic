@@ -1,0 +1,97 @@
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+from genlayer import *
+
+
+class Prolly(gl.Contract):
+    owner: Address
+    next_prolly_id: u256
+
+    names: TreeMap[u256, str]
+    entry_fees: TreeMap[u256, u256]
+    participant_counts: TreeMap[u256, u256]
+    participants: TreeMap[str, bool]
+
+    def __init__(self, owner: Address):
+        self.owner = owner
+        self.next_prolly_id = u256(1)
+
+    @gl.public.write
+    def create_prolly(
+        self,
+        name: str,
+        entry_fee: u256,
+    ) -> u256:
+        if entry_fee <= 0:
+            raise Exception("Entry fee must be greater than zero")
+
+        prolly_id = self.next_prolly_id
+        self.next_prolly_id = prolly_id + 1
+
+        self.names[prolly_id] = name
+        self.entry_fees[prolly_id] = entry_fee
+        self.participant_counts[prolly_id] = u256(0)
+
+        return prolly_id
+
+    @gl.public.write.payable
+    def join(
+        self,
+        prolly_id: u256,
+        participant: str,
+    ) -> None:
+        if prolly_id not in self.names:
+            raise Exception("Prolly does not exist")
+
+        participant_key = f"{prolly_id}:{participant}"
+
+        if participant_key in self.participants:
+            raise Exception("Participant already joined")
+
+        entry_fee = self.entry_fees[prolly_id]
+        platform_fee = (entry_fee * 500) // 10_000
+        required_payment = entry_fee + platform_fee
+
+        if gl.message.value != required_payment:
+            raise Exception("Incorrect payment amount")
+
+        self.participants[participant_key] = True
+
+        count = self.participant_counts.get(
+            prolly_id,
+            u256(0),
+        )
+
+        self.participant_counts[prolly_id] = count + 1
+
+    @gl.public.view
+    def has_joined(
+        self,
+        prolly_id: u256,
+        participant: str,
+    ) -> bool:
+        if prolly_id not in self.names:
+            return False
+
+        participant_key = f"{prolly_id}:{participant}"
+
+        return participant_key in self.participants
+
+    @gl.public.view
+    def get_participant_count(
+        self,
+        prolly_id: u256,
+    ) -> u256:
+        return self.participant_counts.get(
+            prolly_id,
+            u256(0),
+        )
+
+    @gl.public.view
+    def get_entry_fee(
+        self,
+        prolly_id: u256,
+    ) -> u256:
+        return self.entry_fees.get(
+            prolly_id,
+            u256(0),
+        )
