@@ -124,10 +124,7 @@ export async function joinProlly(
   const hash = await client.writeContract({
     address: PROLLY_CONTRACT_ADDRESS,
     functionName: "join",
-    args: [
-      BigInt(prollyId),
-      account,
-    ],
+    args: [BigInt(prollyId)],
     value: payment,
   });
 
@@ -263,7 +260,7 @@ export async function getRandomSeed(
 
   const result = await client.readContract({
     address: PROLLY_CONTRACT_ADDRESS,
-    functionName: "get_random_seed",
+    functionName: "get_randomness_seed",
     args: [BigInt(prollyId)],
   });
 
