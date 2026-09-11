@@ -6,7 +6,7 @@ import {
 async function main(client) {
   const filePath = path.resolve(
     process.cwd(),
-    "contracts/prolly_v2.py"
+    "contracts/prolly.py"
   );
   try {
     console.log("");
