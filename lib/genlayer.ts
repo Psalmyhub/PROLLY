@@ -13,11 +13,11 @@ import type {
 } from "genlayer-js/types";
 
 export const PROLLY_CONTRACT_ADDRESS =
-  "0x87102f492563B66EF1357aE700ec295ba7bD7ae3" as Address;
+  "0xFAFA753b809B1293E2660086215634FA15Cd8E15" as Address;
 
 export const PROLLY_CONTRACT_OWNER =
   (process.env.NEXT_PUBLIC_PROLLY_CONTRACT_OWNER ||
-    "0x285998b2176a9d4eC471DF738554e81b14d34216") as Address;
+    "0xB41f7CcF919515a4741C7AAd43cFfCd56A20Ee31") as Address;
 export const STUDIONET_CHAIN_ID = 61999;
 
 export type OnChainProlly = {
