@@ -1,7 +1,14 @@
 "use client";
+
 import Link from "next/link";
+import { useAccount } from "wagmi";
 import WalletButton from "@/app/components/WalletButton";
+import { isContractOwner } from "@/lib/genlayer";
+
 export default function Home() {
+  const { address } = useAccount();
+  const isAdmin = isContractOwner(address);
+
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
@@ -30,9 +37,9 @@ export default function Home() {
         </div>
 
         <h1 className="max-w-4xl text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl">
-          Your chance.
+          You Prolly Get Lucky
           <br />
-          Your <span className="text-violet-400">Prolly.</span>
+          or <span className="text-violet-400">Vanquished.</span>
         </h1>
 
         <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-400">
@@ -49,12 +56,14 @@ export default function Home() {
             Explore Prollys
           </Link>
 
-          <Link
-            href="/admin"
-            className="rounded-full border border-zinc-700 px-8 py-4 font-semibold text-white hover:bg-zinc-900"
-          >
-            Create a Prolly
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="rounded-full border border-zinc-700 px-8 py-4 font-semibold text-white hover:bg-zinc-900"
+            >
+              Create a Prolly
+            </Link>
+          )}
         </div>
       </section>
 
@@ -149,12 +158,14 @@ export default function Home() {
               whitelists, giveaways and community campaigns.
             </p>
 
-            <Link
-              href="/admin"
-              className="mt-8 inline-block rounded-full border border-zinc-700 px-6 py-3 font-semibold hover:bg-zinc-800"
-            >
-              Sponsor a Prolly
-            </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="mt-8 inline-block rounded-full border border-zinc-700 px-6 py-3 font-semibold hover:bg-zinc-800"
+              >
+                Sponsor a Prolly
+              </Link>
+            )}
           </div>
         </div>
       </section>
