@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useConnect } from "wagmi";
 
-import {
-  loadProllys,
-  saveProllys,
-  type Prolly,
-} from "@/lib/prolly-store";
-
+import { loadProllys, saveProllys, type Prolly } from "@/lib/prolly-store";
 import {
   getAllOnChainProllys,
   hasJoinedProlly,
@@ -17,218 +12,129 @@ import {
   type OnChainProlly,
 } from "@/lib/genlayer";
 
+const FAVORITES_KEY = "prolly-favorites";
+type StatusFilter = "all" | "active" | "closing-soon" | "closed";
+type CreatorFilter = "all" | "admin" | "sponsor";
+type TypeFilter = "all" | "manual" | "task" | "generated-link";
+
 function formatGen(value: bigint): string {
-  const whole =
-    value / BigInt("1000000000000000000");
-
-  const fraction =
-    value % BigInt("1000000000000000000");
-
-  if (fraction === BigInt(0)) {
-    return whole.toString();
-  }
-
-  const fractionText = fraction
-    .toString()
-    .padStart(18, "0")
-    .replace(/0+$/, "");
-
-  return `${whole.toString()}.${fractionText}`;
+  const whole = value / BigInt("1000000000000000000");
+  const fraction = value % BigInt("1000000000000000000");
+  if (fraction === BigInt(0)) return whole.toString();
+  return `${whole}.${fraction.toString().padStart(18, "0").replace(/0+$/, "")}`;
 }
 
 function genToNumber(value: bigint): number {
   return Number(formatGen(value));
 }
 
-function getLocalMetadata(
-  onChain: OnChainProlly,
-  localProllys: Prolly[],
-): Prolly {
-  const existing = localProllys.find(
-    (item) =>
-      item.onChainId ===
-      onChain.id.toString(),
-  );
-
+function getLocalMetadata(onChain: OnChainProlly, localProllys: Prolly[]): Prolly {
+  const existing = localProllys.find((item) => item.onChainId === onChain.id.toString());
   if (existing) {
     return {
       ...existing,
-      title:
-        existing.title || onChain.name,
-      entryAmount: genToNumber(
-        onChain.entryFee,
-      ),
-      maxParticipants: Number(
-        onChain.maxParticipants,
-      ),
-      winners: Number(
-        onChain.winnerCount,
-      ),
-      participants: Number(
-        onChain.participantCount,
-      ),
+      title: existing.title || onChain.name,
+      entryAmount: genToNumber(onChain.entryFee),
+      maxParticipants: Number(onChain.maxParticipants),
+      winners: Number(onChain.winnerCount),
+      participants: Number(onChain.participantCount),
     };
   }
-
   return {
-    id: `onchain-${onChain.id.toString()}`,
+    id: `onchain-${onChain.id}`,
     onChainId: onChain.id.toString(),
     title: onChain.name,
     description: "",
     creatorUsername: "Admin",
     creatorRole: "admin",
-    entryAmount: genToNumber(
-      onChain.entryFee,
-    ),
-    participants: Number(
-      onChain.participantCount,
-    ),
-    maxParticipants: Number(
-      onChain.maxParticipants,
-    ),
-    winners: Number(
-      onChain.winnerCount,
-    ),
+    entryAmount: genToNumber(onChain.entryFee),
+    participants: Number(onChain.participantCount),
+    maxParticipants: Number(onChain.maxParticipants),
+    winners: Number(onChain.winnerCount),
     closingMode: "participants",
     createdAt: Date.now(),
   };
 }
 
+function getPostType(prolly: Prolly): TypeFilter {
+  if (prolly.creatorRole !== "sponsor") return "all";
+  if (prolly.sponsorCategory === "task") return "task";
+  if (prolly.sponsorCategory === "manual") return "manual";
+  return "generated-link";
+}
+
+function getStatus(chain: OnChainProlly, prolly: Prolly): StatusFilter {
+  if (chain.closed || chain.participantCount >= chain.maxParticipants) return "closed";
+  if (prolly.closesAt && prolly.closesAt > Date.now() && prolly.closesAt - Date.now() <= 24 * 60 * 60 * 1000) {
+    return "closing-soon";
+  }
+  return "active";
+}
+
 export default function ProllysPage() {
-  const {
-    address,
-    isConnected,
-  } = useAccount();
-
-  const {
-    connect,
-    connectors,
-    isPending: isConnecting,
-  } = useConnect();
-
-  const [
-    mounted,
-    setMounted,
-  ] = useState(false);
-
-  const [
-    prollys,
-    setProllys,
-  ] = useState<Prolly[]>([]);
-
-  const [
-    onChainProllys,
-    setOnChainProllys,
-  ] = useState<OnChainProlly[]>([]);
-
-  const [
-    joinedStates,
-    setJoinedStates,
-  ] = useState<
-    Record<string, boolean>
-  >({});
-
-  const [
-    selectedProlly,
-    setSelectedProlly,
-  ] = useState<Prolly | null>(
-    null,
-  );
-
-  const [
-    loading,
-    setLoading,
-  ] = useState(true);
-
-  const [
-    joining,
-    setJoining,
-  ] = useState(false);
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending: isConnecting } = useConnect();
+  const [mounted, setMounted] = useState(false);
+  const [prollys, setProllys] = useState<Prolly[]>([]);
+  const [onChainProllys, setOnChainProllys] = useState<OnChainProlly[]>([]);
+  const [joinedStates, setJoinedStates] = useState<Record<string, boolean>>({});
+  const [selectedProlly, setSelectedProlly] = useState<Prolly | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [creatorFilter, setCreatorFilter] = useState<CreatorFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
     setMounted(true);
+    try {
+      const saved = localStorage.getItem(FAVORITES_KEY);
+      if (saved) setFavorites(JSON.parse(saved) as string[]);
+    } catch {
+      setFavorites([]);
+    }
   }, []);
 
-  async function loadData() {
-    if (!mounted) {
-      return;
-    }
+  function toggleFavorite(id: string) {
+    setFavorites((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
+  async function loadData() {
+    if (!mounted) return;
     try {
       setLoading(true);
-
-      const onChain =
-        await getAllOnChainProllys();
-
+      const onChain = await getAllOnChainProllys();
       setOnChainProllys(onChain);
-
-      const local =
-        loadProllys();
-
-      const merged =
-        onChain.map((item) =>
-          getLocalMetadata(
-            item,
-            local,
-          ),
-        );
-
+      const local = loadProllys();
+      const merged = onChain.map((item) => getLocalMetadata(item, local));
       setProllys(merged);
-
       saveProllys(merged);
 
       if (address) {
-        const joinedEntries =
-          await Promise.all(
-            onChain.map(
-              async (item) => {
-                try {
-                  const joined =
-                    await hasJoinedProlly(
-                      item.id,
-                      address,
-                    );
-
-                  return [
-                    item.id.toString(),
-                    joined,
-                  ] as const;
-                } catch (error) {
-                  console.error(
-                    `Failed to check join status for Prolly ${item.id.toString()}:`,
-                    error,
-                  );
-
-                  return [
-                    item.id.toString(),
-                    false,
-                  ] as const;
-                }
-              },
-            ),
-          );
-
-        setJoinedStates(
-          Object.fromEntries(
-            joinedEntries,
-          ),
+        const joinedEntries = await Promise.all(
+          onChain.map(async (item) => {
+            try {
+              return [item.id.toString(), await hasJoinedProlly(item.id, address)] as const;
+            } catch (error) {
+              console.error(`Failed to check join status for Prolly ${item.id}:`, error);
+              return [item.id.toString(), false] as const;
+            }
+          }),
         );
+        setJoinedStates(Object.fromEntries(joinedEntries));
       } else {
         setJoinedStates({});
       }
     } catch (error) {
-      console.error(
-        "Failed to load Prollys from GenLayer:",
-        error,
-      );
-
-      alert(
-        `Failed to load Prollys from GenLayer: ${
-          error instanceof Error
-            ? error.message
-            : String(error)
-        }`,
-      );
+      console.error("Failed to load Prollys from GenLayer:", error);
+      alert(`Failed to load Prollys from GenLayer: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setLoading(false);
     }
@@ -239,623 +145,186 @@ export default function ProllysPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, address]);
 
-  function handleJoinClick(
-    prolly: Prolly,
-  ) {
-    if (
-      isConnecting ||
-      joining
-    ) {
-      return;
-    }
-
-    const chain =
-      onChainProllys.find(
-        (item) =>
-          item.id.toString() ===
-          prolly.onChainId,
-      );
-
-    if (!chain) {
-      alert(
-        "This Prolly could not be found on GenLayer.",
-      );
-      return;
-    }
-
-    if (chain.closed) {
-      alert(
-        "This Prolly is closed.",
-      );
-      return;
-    }
-
-    if (
-      chain.participantCount >=
-      chain.maxParticipants
-    ) {
-      alert(
-        "This Prolly is full.",
-      );
-      return;
-    }
+  function handleJoinClick(prolly: Prolly) {
+    if (isConnecting || joining) return;
+    const chain = onChainProllys.find((item) => item.id.toString() === prolly.onChainId);
+    if (!chain) return alert("This Prolly could not be found on GenLayer.");
+    if (chain.closed) return alert("This Prolly is closed.");
+    if (chain.participantCount >= chain.maxParticipants) return alert("This Prolly is full.");
 
     if (!isConnected) {
-      const metaMaskConnector =
-        connectors.find(
-          (connector) =>
-            connector.name
-              .toLowerCase()
-              .includes("metamask"),
-        ) ??
-        connectors.find(
-          (connector) =>
-            connector.type ===
-            "injected",
-        );
-
-      if (!metaMaskConnector) {
-        alert(
-          "MetaMask connector not found. Please make sure MetaMask is installed and unlocked.",
-        );
-        return;
-      }
-
+      const connector = connectors.find((item) => item.name.toLowerCase().includes("metamask")) ?? connectors.find((item) => item.type === "injected");
+      if (!connector) return alert("MetaMask connector not found. Please make sure MetaMask is installed and unlocked.");
       connect(
+        { connector },
         {
-          connector:
-            metaMaskConnector,
+          onSuccess: () => setSelectedProlly(prolly),
+          onError: (error) => alert(`Wallet connection failed: ${error instanceof Error ? error.message : "Unknown error"}`),
         },
-        {
-          onSuccess: () => {
-            setSelectedProlly(
-              prolly,
-            );
-          },
-          onError: (error) => {
-            console.error(
-              "Wallet connection failed:",
-              error,
-            );
-
-            alert(
-              `Wallet connection failed: ${
-                error instanceof Error
-                  ? error.message
-                  : "Unknown error"
-              }`,
-            );
-          },
-        },
-      );
-
-      return;
-    }
-
-    if (
-      joinedStates[
-        prolly.onChainId ??
-          ""
-      ]
-    ) {
-      alert(
-        "This wallet has already joined this Prolly.",
       );
       return;
     }
 
-    setSelectedProlly(
-      prolly,
-    );
+    if (joinedStates[prolly.onChainId ?? ""]) return alert("This wallet has already joined this Prolly.");
+    setSelectedProlly(prolly);
   }
 
   async function handleJoin() {
-    if (joining) {
-      return;
-    }
+    if (joining) return;
+    if (!address || !isConnected) return alert("Please connect your wallet first.");
+    if (!selectedProlly?.onChainId) return alert("This Prolly does not have a valid GenLayer ID.");
 
-    if (
-      !address ||
-      !isConnected
-    ) {
-      alert(
-        "Please connect your wallet first.",
-      );
-      return;
-    }
-
-    if (
-      !selectedProlly?.onChainId
-    ) {
-      alert(
-        "This Prolly does not have a valid GenLayer ID.",
-      );
-      return;
-    }
-
-    const chain =
-      onChainProllys.find(
-        (item) =>
-          item.id.toString() ===
-          selectedProlly.onChainId,
-      );
-
-    if (!chain) {
-      alert(
-        "This Prolly could not be found on GenLayer.",
-      );
-      return;
-    }
-
-    if (chain.closed) {
-      alert(
-        "This Prolly is closed.",
-      );
+    const chain = onChainProllys.find((item) => item.id.toString() === selectedProlly.onChainId);
+    if (!chain) return alert("This Prolly could not be found on GenLayer.");
+    if (chain.closed || chain.participantCount >= chain.maxParticipants) {
       setSelectedProlly(null);
-      return;
+      return alert(chain.closed ? "This Prolly is closed." : "This Prolly is full.");
     }
-
-    if (
-      chain.participantCount >=
-      chain.maxParticipants
-    ) {
-      alert(
-        "This Prolly is full.",
-      );
+    if (joinedStates[selectedProlly.onChainId]) {
       setSelectedProlly(null);
-      return;
-    }
-
-    if (
-      joinedStates[
-        selectedProlly.onChainId
-      ]
-    ) {
-      alert(
-        "This wallet has already joined this Prolly.",
-      );
-      setSelectedProlly(null);
-      return;
+      return alert("This wallet has already joined this Prolly.");
     }
 
     try {
       setJoining(true);
-
-      const payment =
-        chain.entryFee;
-
-      alert(
-        `Joining with ${formatGen(payment)} GEN. Please confirm the GenLayer transaction in MetaMask.`,
-      );
-
-      await joinOnChainProlly(
-        address,
-        chain.id,
-        payment,
-      );
-
+      alert(`Joining with ${formatGen(chain.entryFee)} GEN. Please confirm the GenLayer transaction in MetaMask.`);
+      await joinOnChainProlly(address, chain.id, chain.entryFee);
       setSelectedProlly(null);
-
-      alert(
-        "Successfully joined the Prolly on GenLayer.",
-      );
-
+      alert("Successfully joined the Prolly on GenLayer.");
       await loadData();
     } catch (error) {
-      console.error(
-        "GenLayer join failed:",
-        error,
-      );
-
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(error);
-
-      alert(
-        `Join failed: ${message}`,
-      );
+      console.error("GenLayer join failed:", error);
+      alert(`Join failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setJoining(false);
     }
   }
 
-  const availableProllys =
-    useMemo(
-      () =>
-        onChainProllys.length,
-      [onChainProllys],
-    );
+  const filteredProllys = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return prollys.filter((prolly) => {
+      const chain = onChainProllys.find((item) => item.id.toString() === prolly.onChainId);
+      if (!chain) return false;
+      const searchable = [prolly.title, prolly.description, prolly.creatorUsername, prolly.sponsorCategory ?? ""].join(" ").toLowerCase();
+      if (query && !searchable.includes(query)) return false;
+      if (creatorFilter !== "all" && prolly.creatorRole !== creatorFilter) return false;
+      if (typeFilter !== "all" && getPostType(prolly) !== typeFilter) return false;
+      if (favoritesOnly && !favorites.includes(prolly.onChainId ?? prolly.id)) return false;
+      if (statusFilter !== "all" && getStatus(chain, prolly) !== statusFilter) return false;
+      return true;
+    });
+  }, [prollys, onChainProllys, search, creatorFilter, typeFilter, favoritesOnly, favorites, statusFilter]);
 
   if (!mounted) {
-    return (
-      <main className="min-h-screen bg-zinc-950 text-white">
-        <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
-          <p className="text-zinc-400">
-            Loading...
-          </p>
-        </div>
-      </main>
-    );
+    return <main className="min-h-screen bg-zinc-950 text-white"><div className="flex min-h-screen items-center justify-center"><p className="text-zinc-400">Loading...</p></div></main>;
   }
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <Link
-            href="/"
-            className="text-2xl font-bold tracking-tight"
-          >
-            PROLLY
-            <span className="text-violet-400">
-              .
-            </span>
-          </Link>
-
-          <Link
-            href="/admin"
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
-          >
-            Create a Prolly
-          </Link>
+          <Link href="/" className="text-2xl font-bold tracking-tight">PROLLY<span className="text-violet-400">.</span></Link>
+          <Link href="/" className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800">Home</Link>
         </div>
       </nav>
 
       <section className="mx-auto max-w-7xl px-6 py-14">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
-              Explore
-            </p>
-
-            <h1 className="mt-4 text-4xl font-bold sm:text-5xl">
-              Choose your Prolly.
-            </h1>
-
-            <p className="mt-5 text-lg leading-8 text-zinc-400">
-              Pick an active Prolly and join
-              immediately. Every participant
-              gets one opportunity.
-            </p>
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">Explore</p>
+            <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Choose your Prolly.</h1>
+            <p className="mt-5 text-lg leading-8 text-zinc-400">Discover active Prollys. Every participant gets one opportunity.</p>
           </div>
-
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading
-              ? "Refreshing..."
-              : "Refresh"}
-          </button>
+          <button onClick={loadData} disabled={loading} className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">{loading ? "Refreshing..." : "Refresh"}</button>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-green-500/20 bg-green-500/5 px-5 py-4">
-          <p className="text-sm text-green-300">
-            {availableProllys} Prolly
-            {availableProllys === 1
-              ? ""
-              : "s"} currently registered
-            on GenLayer.
-          </p>
+        <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, creator, sponsor, description..." className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none placeholder:text-zinc-600 focus:border-violet-500" />
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Statuses</option><option value="active">Active</option><option value="closing-soon">Closing Soon</option><option value="closed">Closed</option></select>
+            <select value={creatorFilter} onChange={(event) => setCreatorFilter(event.target.value as CreatorFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Creators</option><option value="admin">Admin</option><option value="sponsor">Sponsor</option></select>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TypeFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Types</option><option value="manual">Manual</option><option value="task">Task</option><option value="generated-link">Generated Link</option></select>
+            <button onClick={() => setFavoritesOnly((current) => !current)} className={`rounded-xl border px-4 py-3 text-sm font-medium ${favoritesOnly ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-zinc-700 hover:bg-zinc-800"}`}>{favoritesOnly ? "♥ Favorites" : "♡ Favorites"}</button>
+          </div>
         </div>
+
+        <div className="mt-6 rounded-2xl border border-green-500/20 bg-green-500/5 px-5 py-4"><p className="text-sm text-green-300">{onChainProllys.length} Prolly{onChainProllys.length === 1 ? "" : "s"} currently registered on GenLayer.</p></div>
 
         {loading ? (
-          <div className="mt-12 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
-            <p className="text-zinc-400">
-              Loading Prollys from GenLayer...
-            </p>
-          </div>
+          <div className="mt-12 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-12 text-center"><p className="text-zinc-400">Loading Prollys from GenLayer...</p></div>
+        ) : filteredProllys.length === 0 ? (
+          <div className="mt-12 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-12 text-center"><p className="text-lg font-semibold">No Prollys match your filters.</p><p className="mt-2 text-sm text-zinc-500">Try clearing search or changing the filters.</p></div>
         ) : (
           <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {prollys.map(
-              (prolly) => {
-                const chain =
-                  onChainProllys.find(
-                    (item) =>
-                      item.id.toString() ===
-                      prolly.onChainId,
-                  );
+            {filteredProllys.map((prolly) => {
+              const chain = onChainProllys.find((item) => item.id.toString() === prolly.onChainId);
+              if (!chain) return null;
+              const participantCount = Number(chain.participantCount);
+              const maxParticipants = Number(chain.maxParticipants);
+              const isFull = participantCount >= maxParticipants;
+              const isClosed = chain.closed;
+              const isJoined = !!prolly.onChainId && !!joinedStates[prolly.onChainId];
+              const isFavorite = favorites.includes(prolly.onChainId ?? prolly.id);
+              const progress = maxParticipants > 0 ? Math.min((participantCount / maxParticipants) * 100, 100) : 0;
+              const status = getStatus(chain, prolly);
+              const postType = prolly.creatorRole === "sponsor" ? getPostType(prolly) : "all";
 
-                if (!chain) {
-                  return null;
-                }
-
-                const participantCount =
-                  Number(
-                    chain.participantCount,
-                  );
-
-                const maxParticipants =
-                  Number(
-                    chain.maxParticipants,
-                  );
-
-                const isFull =
-                  participantCount >=
-                  maxParticipants;
-
-                const isClosed =
-                  chain.closed;
-
-                const isJoined =
-                  !!prolly.onChainId &&
-                  !!joinedStates[
-                    prolly.onChainId
-                  ];
-
-                const progress =
-                  maxParticipants > 0
-                    ? Math.min(
-                        (participantCount /
-                          maxParticipants) *
-                          100,
-                        100,
-                      )
-                    : 0;
-
-                return (
-                  <article
-                    key={chain.id.toString()}
-                    className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50"
-                  >
-                    <div className="p-6">
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="text-2xl font-bold">
-                          {prolly.title ||
-                            chain.name ||
-                            "Untitled Prolly"}
-                        </h2>
-
-                        <span className="shrink-0 rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-400">
-                          #
-                          {chain.id.toString()}
-                        </span>
+              return (
+                <article key={chain.id.toString()} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50">
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-400">{prolly.creatorRole}</span>{postType !== "all" && <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">{postType === "generated-link" ? "Generated Link" : postType}</span>}</div>
+                        <h2 className="mt-3 text-2xl font-bold">{prolly.title || chain.name || "Untitled Prolly"}</h2>
                       </div>
-
-                      <p className="mt-3 min-h-14 text-sm leading-6 text-zinc-400">
-                        {prolly.description ||
-                          "No description provided."}
-                      </p>
-
-                      <div className="mt-6 flex h-48 items-center justify-center rounded-2xl bg-zinc-800">
-                        <span className="text-sm text-zinc-600">
-                          Prolly image
-                        </span>
-                      </div>
-
-                      <div className="mt-6 space-y-3 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500">
-                            Entry fee
-                          </span>
-
-                          <span className="font-medium">
-                            {formatGen(
-                              chain.entryFee,
-                            )}{" "}
-                            GEN
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500">
-                            Participants
-                          </span>
-
-                          <span className="font-medium">
-                            {participantCount} /{" "}
-                            {maxParticipants}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500">
-                            Winners
-                          </span>
-
-                          <span className="font-medium">
-                            {chain.winnerCount.toString()}
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500">
-                            Status
-                          </span>
-
-                          <span
-                            className={
-                              isClosed
-                                ? "font-semibold text-red-400"
-                                : "font-semibold text-green-400"
-                            }
-                          >
-                            {isClosed
-                              ? "Closed"
-                              : "Open"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-5 h-2 overflow-hidden rounded-full bg-zinc-800">
-                        <div
-                          className="h-full rounded-full bg-violet-500"
-                          style={{
-                            width: `${progress}%`,
-                          }}
-                        />
-                      </div>
-
-                      <button
-                        disabled={
-                          isClosed ||
-                          isFull ||
-                          isJoined ||
-                          isConnecting ||
-                          joining
-                        }
-                        onClick={() =>
-                          handleJoinClick(
-                            prolly,
-                          )
-                        }
-                        className={`mt-7 w-full rounded-full py-3 font-semibold ${
-                          isClosed ||
-                          isFull ||
-                          isJoined ||
-                          isConnecting ||
-                          joining
-                            ? "cursor-not-allowed bg-zinc-800 text-zinc-500"
-                            : "bg-violet-500 hover:bg-violet-400"
-                        }`}
-                      >
-                        {isClosed
-                          ? "Prolly Closed"
-                          : isFull
-                            ? "Prolly Full"
-                            : isJoined
-                              ? "Already Joined"
-                              : !isConnected
-                                ? "Connect wallet to join"
-                                : "Join Prolly"}
-                      </button>
+                      <button onClick={() => toggleFavorite(prolly.onChainId ?? prolly.id)} aria-label={isFavorite ? "Remove favorite" : "Add favorite"} className="text-2xl leading-none text-zinc-400 hover:text-white">{isFavorite ? "♥" : "♡"}</button>
                     </div>
-                  </article>
-                );
-              },
-            )}
+
+                    <p className="mt-3 min-h-14 text-sm leading-6 text-zinc-400">{prolly.description || "No description provided."}</p>
+                    <div className="mt-6 flex h-40 items-center justify-center rounded-2xl bg-zinc-800"><span className="text-sm text-zinc-600">Prolly image</span></div>
+
+                    <div className="mt-6 flex items-center justify-between text-sm"><div><p className="text-zinc-500">Creator</p><p className="mt-1 font-medium">@{prolly.creatorUsername || "admin"}</p></div><div className="text-right"><p className="text-zinc-500">Status</p><p className="mt-1 font-medium capitalize">{status.replace("-", " ")}</p></div></div>
+
+                    <div className="mt-5 space-y-3 text-sm">
+                      <div className="flex justify-between"><span className="text-zinc-500">Entry</span><span className="font-medium">{formatGen(chain.entryFee)} GEN</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">Participants</span><span className="font-medium">{participantCount} / {maxParticipants}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">Winners</span><span className="font-medium">{chain.winnerCount.toString()}</span></div>
+                    </div>
+
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} /></div>
+
+                    <div className="mt-6 flex gap-3">
+                      {!isJoined && !isClosed && !isFull ? (
+                        <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{joining ? "Joining..." : "Join Prolly"}</button>
+                      ) : isJoined ? (
+                        chain.winnersFinalized ? (
+                          <Link href={`/prollys/${prolly.onChainId}`} className="flex-1 rounded-full bg-violet-500 px-5 py-3 text-center font-semibold hover:bg-violet-400">View Battle</Link>
+                        ) : (
+                          <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Battle Starting Soon</button>
+                        )
+                      ) : (
+                        <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">{isFull ? "Prolly Full" : "Prolly Closed"}</button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
-
-        {!loading &&
-          prollys.length === 0 && (
-            <div className="mt-12 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
-              <p className="text-zinc-400">
-                No Prollys are available on
-                GenLayer yet.
-              </p>
-
-              <Link
-                href="/admin"
-                className="mt-5 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold hover:bg-violet-400"
-              >
-                Create a Prolly
-              </Link>
-            </div>
-          )}
       </section>
 
-      {selectedProlly &&
-        onChainProllys.find(
-          (item) =>
-            item.id.toString() ===
-            selectedProlly.onChainId,
-        ) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
-            <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-8">
-              {(() => {
-                const selectedChain =
-                  onChainProllys.find(
-                    (item) =>
-                      item.id.toString() ===
-                      selectedProlly.onChainId,
-                  );
-
-                if (!selectedChain) {
-                  return null;
-                }
-
-                return (
-                  <>
-                    <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
-                      Join Prolly
-                    </p>
-
-                    <h2 className="mt-3 text-3xl font-bold">
-                      {selectedProlly.title ||
-                        selectedChain.name ||
-                        "Untitled Prolly"}
-                    </h2>
-
-                    <p className="mt-4 text-sm leading-6 text-zinc-400">
-                      {selectedProlly.description ||
-                        "No description provided."}
-                    </p>
-
-                    <div className="mt-7 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">
-                          Entry fee
-                        </span>
-
-                        <span>
-                          {formatGen(
-                            selectedChain.entryFee,
-                          )}{" "}
-                          GEN
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">
-                          Participants
-                        </span>
-
-                        <span>
-                          {selectedChain.participantCount.toString()}{" "}
-                          /{" "}
-                          {selectedChain.maxParticipants.toString()}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span className="text-zinc-500">
-                          Winners
-                        </span>
-
-                        <span>
-                          {selectedChain.winnerCount.toString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="mt-5 text-sm leading-6 text-zinc-500">
-                      Your wallet will submit the
-                      GenLayer transaction. The
-                      contract requires the exact
-                      entry fee.
-                    </p>
-
-                    <button
-                      onClick={handleJoin}
-                      disabled={
-                        joining ||
-                        !isConnected
-                      }
-                      className="mt-7 w-full rounded-full bg-violet-500 py-3 font-semibold hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {joining
-                        ? "Joining on GenLayer..."
-                        : "Confirm & Join"}
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        setSelectedProlly(null)
-                      }
-                      disabled={joining}
-                      className="mt-3 w-full rounded-full border border-zinc-800 py-3 font-semibold hover:bg-zinc-900 disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                );
-              })()}
-            </div>
+      {selectedProlly && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+          <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-7 shadow-2xl">
+            <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">Confirm entry</p>
+            <h2 className="mt-3 text-2xl font-bold">{selectedProlly.title}</h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">You receive exactly one opportunity in this Prolly. The GenLayer contract records the participant and controls the authoritative winner selection.</p>
+            <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-4"><div className="flex justify-between text-sm"><span className="text-zinc-500">Entry</span><span className="font-semibold">{formatGen(onChainProllys.find((item) => item.id.toString() === selectedProlly.onChainId)?.entryFee ?? BigInt(0))} GEN</span></div></div>
+            <div className="mt-6 flex gap-3"><button onClick={() => setSelectedProlly(null)} disabled={joining} className="flex-1 rounded-full border border-zinc-700 px-5 py-3 font-semibold hover:bg-zinc-900 disabled:opacity-50">Cancel</button><button onClick={handleJoin} disabled={joining} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{joining ? "Joining..." : "Confirm Join"}</button></div>
           </div>
-        )}
+        </div>
+      )}
     </main>
   );
 }
