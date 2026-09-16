@@ -50,7 +50,11 @@ function getClient() {
   });
 }
 
-async function read(client: ReturnType<typeof getClient>, functionName: string, prollyId: bigint) {
+async function read(
+  client: ReturnType<typeof getClient>,
+  functionName: string,
+  prollyId: bigint,
+) {
   return client.readContract({
     address: CONTRACT_ADDRESS,
     functionName,
@@ -109,7 +113,10 @@ async function runRelayer(request: NextRequest) {
 
   try {
     const client = getClient();
-    const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
+    const body =
+      request.method === "POST"
+        ? await request.json().catch(() => ({}))
+        : {};
     const requestedId = body?.prollyId;
 
     if (requestedId !== undefined) {
@@ -117,26 +124,19 @@ async function runRelayer(request: NextRequest) {
       return NextResponse.json({ ok: true, results: [result] });
     }
 
-    const nextIdResult = await client.readContract({
-      address: CONTRACT_ADDRESS,
-      functionName: "get_name",
-      args: [1n],
-    });
-
-    if (!String(nextIdResult || "")) {
-      return NextResponse.json({ ok: true, results: [] });
-    }
+    const nextId = BigInt(
+      String(
+        await client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: "get_next_prolly_id",
+          args: [],
+        }),
+      ),
+    );
 
     const results: Array<Record<string, string>> = [];
-    for (let id = 1n; id <= 10000n; id++) {
-      const name = await client.readContract({
-        address: CONTRACT_ADDRESS,
-        functionName: "get_name",
-        args: [id],
-      });
 
-      if (!String(name || "")) break;
-
+    for (let id = 1n; id < nextId; id++) {
       try {
         results.push(await finalizeOne(client, id));
       } catch (error) {
@@ -148,7 +148,10 @@ async function runRelayer(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, results });
+    return NextResponse.json({
+      ok: true,
+      results,
+    });
   } catch (error) {
     console.error("Prolly finalization relayer error:", error);
 
