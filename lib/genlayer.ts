@@ -61,8 +61,14 @@ function getProvider(): Eip1193Provider {
  * GenLayer's readContract API supports account-free reads.
  */
 function getReadClient() {
+  const endpoint =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/genlayer`
+      : "/api/genlayer";
+
   return createClient({
     chain: studionet,
+    endpoint,
   });
 }
 
