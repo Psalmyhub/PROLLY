@@ -18,6 +18,8 @@ import {
   createProlly,
   getAllOnChainProllys,
   closeProlly as closeOnChainProlly,
+  isContractOwner,
+  PROLLY_CONTRACT_OWNER,
   type OnChainProlly,
 } from "@/lib/genlayer";
 
@@ -29,7 +31,7 @@ import {
 } from "@/lib/role-store";
 
 const ADMIN_ADDRESS =
-  process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS;
+  PROLLY_CONTRACT_OWNER;
 
 type ProllyStatus = "active" | "closed";
 
@@ -160,11 +162,19 @@ export default function AdminPage() {
       return;
     }
 
+    const ownerMatch = isContractOwner(address);
+    const role = getRole(address, ADMIN_ADDRESS);
+
+    console.log("PROLLY ADMIN CHECK", {
+      connectedWallet: address,
+      contractOwner: PROLLY_CONTRACT_OWNER,
+      adminAddress: ADMIN_ADDRESS,
+      ownerMatch,
+      role,
+    });
+
     setIsAdmin(
-      getRole(
-        address,
-        ADMIN_ADDRESS,
-      ) === "admin",
+      ownerMatch && role === "admin",
     );
   }, [address]);
 

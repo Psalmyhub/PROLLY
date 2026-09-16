@@ -134,7 +134,7 @@ async function runRelayer(request: NextRequest) {
       ),
     );
 
-    const results: Array<Record<string, string>> = [];
+    const results: Array<{ prollyId: string; action: string; reason?: string; hash?: string }> = [];
 
     for (let id = 1n; id < nextId; id++) {
       try {
