@@ -294,23 +294,23 @@ export default function ProllysPage() {
                     <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} /></div>
 
                     <div className="mt-6 flex gap-3">
-                      {!isJoined && !isClosed && !isFull ? (
+                      {!isClosed && !isJoined ? (
                         <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{joining ? "Joining..." : "Join Prolly"}</button>
-                      ) : isJoined ? (
-                        chain.winnersFinalized ? (
-                          <Link href={`/prollys/${prolly.onChainId}`} className="flex-1 rounded-full bg-violet-500 px-5 py-3 text-center font-semibold hover:bg-violet-400">View Battle</Link>
-                        ) : isClosed ? (
-                          <Link
-                            href={`/prollys/${prolly.onChainId}`}
-                            className="flex-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-center font-semibold text-amber-300 hover:bg-amber-500/20"
-                          >
-                            Authorize GenLayer
-                          </Link>
-                        ) : (
-                          <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Battle Starting Soon</button>
-                        )
+                      ) : !isClosed && isJoined ? (
+                        <button disabled className="flex-1 cursor-not-allowed rounded-full border border-green-500/30 bg-green-500/10 px-5 py-3 font-semibold text-green-300">Joined</button>
+                      ) : isClosed && isJoined && !chain.winnersFinalized ? (
+                        <Link
+                          href={`/prollys/${prolly.onChainId}`}
+                          className="flex-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-center font-semibold text-amber-300 hover:bg-amber-500/20"
+                        >
+                          Authorize GenLayer
+                        </Link>
+                      ) : isClosed && isJoined && chain.winnersFinalized && !chain.randomSeed ? (
+                        <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Waiting for random selection</button>
+                      ) : isClosed && isJoined && chain.winnersFinalized && chain.randomSeed ? (
+                        <Link href={`/prollys/${prolly.onChainId}`} className="flex-1 rounded-full bg-violet-500 px-5 py-3 text-center font-semibold hover:bg-violet-400">View Winner / Battle</Link>
                       ) : (
-                        <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">{isFull ? "Prolly Full" : "Prolly Closed"}</button>
+                        <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Prolly Closed</button>
                       )}
                     </div>
                   </div>
