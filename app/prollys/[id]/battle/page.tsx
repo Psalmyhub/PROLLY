@@ -33,6 +33,75 @@ function getLocalMetadata(onChain: OnChainProlly): Prolly | null {
   );
 }
 
+const BATTLE_EVENTS = [
+  "{name} was bitten by a snake.",
+  "{name} slipped and fell into a river.",
+  "{name} was caught in a sudden storm.",
+  "{name} was trapped in a collapsing tunnel.",
+  "{name} got lost in the forest.",
+  "{name} was caught in a car crash.",
+  "{name} stepped into a hidden trap.",
+  "{name} was chased out of the arena.",
+  "{name} was stranded on a broken bridge.",
+  "{name} was swept away by a strong current.",
+  "{name} was caught in a landslide.",
+  "{name} could not escape the burning building.",
+  "{name} was struck by a falling object.",
+  "{name} missed the final checkpoint.",
+  "{name} was trapped behind a locked gate.",
+  "{name} was caught in a dangerous maze.",
+  "{name} lost the final survival challenge.",
+  "{name} was separated from the group.",
+  "{name} was caught in a freezing storm.",
+  "{name} fell behind during the final chase.",
+  "{name} was unable to cross the finish line.",
+  "{name} was caught outside the safe zone.",
+  "{name} missed the final signal.",
+  "{name} was eliminated in the last challenge.",
+  "{name} was caught by a surprise ambush.",
+  "{name} could not make it through the final round.",
+  "{name} was forced to surrender.",
+  "{name} was the final player eliminated.",
+];
+
+function buildBattleEvents(
+  participants: Array<{ username: string; walletAddress?: string }>,
+  winnerAddresses: string[],
+) {
+  const winnerSet = new Set(winnerAddresses.map((address) => address.toLowerCase()));
+  const losers = participants.filter(
+    (participant) =>
+      participant.walletAddress &&
+      !winnerSet.has(participant.walletAddress.toLowerCase()),
+  );
+
+  const events = losers.map((participant, index) => ({
+    text: BATTLE_EVENTS[index % BATTLE_EVENTS.length].replace(
+      "{name}",
+      participant.username || "Player",
+    ),
+    winner: false,
+  }));
+
+  const winners = participants.filter(
+    (participant) =>
+      participant.walletAddress &&
+      winnerSet.has(participant.walletAddress.toLowerCase()),
+  );
+
+  winners.forEach((winner, index) => {
+    events.push({
+      text:
+        winners.length === 1
+          ? `${winner.username || "Player"} survived. Winner ${winner.username || "Player"}!`
+          : `${winner.username || "Player"} survived. Winner #${index + 1}: ${winner.username || "Player"}.`,
+      winner: true,
+    });
+  });
+
+  return events;
+}
+
 export default function ProllyBattlePage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -45,7 +114,7 @@ export default function ProllyBattlePage() {
   const [prolly, setProlly] = useState<Prolly | null>(null);
   const [joined, setJoined] = useState(false);
   const [winnerAddresses, setWinnerAddresses] = useState<string[]>([]);
-  const [revealedCount, setRevealedCount] = useState(0);
+  const [revealedCount, setRevealedCount] = useState(0);\n  const [battleEventIndex, setBattleEventIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,24 +185,26 @@ export default function ProllyBattlePage() {
     [winnerAddresses, prolly],
   );
 
-  const canWatch = joined || replay;
+  const canWatch = joined || replay;\n\n  const battleEvents = useMemo(\n    () => buildBattleEvents(prolly?.participantList ?? [], winnerAddresses),\n    [prolly, winnerAddresses],\n  );\n\n  const visibleBattleEvents = battleEvents.slice(0, battleEventIndex);
 
   useEffect(() => {
-    if (!canWatch || winners.length === 0) return;
+    if (!canWatch || (winners.length === 0 && battleEvents.length === 0)) return;
 
     setRevealedCount(0);
+    setBattleEventIndex(0);
     const timer = window.setInterval(() => {
-      setRevealedCount((current) => {
-        if (current >= winners.length) {
+      setBattleEventIndex((current) => {
+        if (current >= battleEvents.length) {
           window.clearInterval(timer);
           return current;
         }
         return current + 1;
       });
+      setRevealedCount((current) => Math.min(current + 1, winners.length));
     }, 1100);
 
     return () => window.clearInterval(timer);
-  }, [canWatch, winners.length, id]);
+  }, [canWatch, battleEvents.length, winners.length, id]);
 
   if (loading) {
     return (
@@ -232,6 +303,19 @@ export default function ProllyBattlePage() {
               finalized the winner set, and those same winners are being revealed
               here. The Battle does not generate or replace winners.
             </p>
+          </div>
+
+          <div className="mt-10 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-amber-300">Battle story</p>
+            <div className="mt-4 space-y-3">
+              {visibleBattleEvents.map((event, index) => (
+                <div key={`${index}-${event.text}`} className={`rounded-xl border p-4 ${event.winner ? "border-emerald-400/30 bg-emerald-400/5" : "border-white/10 bg-black/20"}`}>
+                  <p className="text-sm leading-6 text-zinc-200">{event.text}</p>
+                  {event.winner && <p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-300">WINNER — VERIFIED ON-CHAIN</p>}
+                </div>
+              ))}
+              {visibleBattleEvents.length === 0 && <p className="text-sm text-zinc-500">The Battle is about to begin...</p>}
+            </div>
           </div>
 
           <div className="mt-10 space-y-4">
