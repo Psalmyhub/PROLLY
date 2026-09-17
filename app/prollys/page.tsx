@@ -113,7 +113,7 @@ export default function ProllysPage() {
       const onChain = await getAllOnChainProllys();
       setOnChainProllys(onChain);
       const local = loadProllys();
-      const merged = onChain.map((item) => getLocalMetadata(item, local));
+      const merged = onChain\n        .map((item) => getLocalMetadata(item, local))\n        .sort((a, b) => Number(b.onChainId || 0) - Number(a.onChainId || 0));
       setProllys(merged);
       saveProllys(merged);
 
