@@ -205,12 +205,18 @@ export default function AdminPage() {
         loadProllys();
 
       const merged =
-        onChain.map((item) =>
-          getLocalMetadata(
-            item,
-            local,
-          ),
-        );
+        onChain
+          .map((item) =>
+            getLocalMetadata(
+              item,
+              local,
+            ),
+          )
+          .sort(
+            (a, b) =>
+              Number(b.onChainId || 0) -
+              Number(a.onChainId || 0),
+          );
 
       setProllys(merged);
 
