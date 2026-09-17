@@ -114,7 +114,8 @@ export default function ProllyBattlePage() {
   const [prolly, setProlly] = useState<Prolly | null>(null);
   const [joined, setJoined] = useState(false);
   const [winnerAddresses, setWinnerAddresses] = useState<string[]>([]);
-  const [revealedCount, setRevealedCount] = useState(0);\n  const [battleEventIndex, setBattleEventIndex] = useState(0);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [battleEventIndex, setBattleEventIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -185,7 +186,14 @@ export default function ProllyBattlePage() {
     [winnerAddresses, prolly],
   );
 
-  const canWatch = joined || replay;\n\n  const battleEvents = useMemo(\n    () => buildBattleEvents(prolly?.participantList ?? [], winnerAddresses),\n    [prolly, winnerAddresses],\n  );\n\n  const visibleBattleEvents = battleEvents.slice(0, battleEventIndex);
+  const canWatch = joined || replay;
+
+  const battleEvents = useMemo(
+    () => buildBattleEvents(prolly?.participantList ?? [], winnerAddresses),
+    [prolly, winnerAddresses],
+  );
+
+  const visibleBattleEvents = battleEvents.slice(0, battleEventIndex);
 
   useEffect(() => {
     if (!canWatch || (winners.length === 0 && battleEvents.length === 0)) return;
