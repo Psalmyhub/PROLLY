@@ -113,7 +113,6 @@ export default function ProllyDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
-  const [finalizationCountdown, setFinalizationCountdown] = useState<number | null>(null);
   const [randomSeed, setRandomSeed] = useState<string>("");
   const [winnerAddresses, setWinnerAddresses] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -209,47 +208,6 @@ export default function ProllyDetailsPage() {
       setFinalizing(false);
     }
   }
-
-  useEffect(() => {
-    if (!onChain?.closed || onChain.winnersFinalized) {
-      setFinalizationCountdown(null);
-      return;
-    }
-
-    setFinalizationCountdown(10);
-
-    const countdownTimer = window.setInterval(() => {
-      setFinalizationCountdown((current) => {
-        if (current === null || current <= 1) {
-          window.clearInterval(countdownTimer);
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(countdownTimer);
-  }, [onChain?.closed, onChain?.winnersFinalized]);
-
-  useEffect(() => {
-    if (
-      !onChain?.closed ||
-      onChain.winnersFinalized ||
-      finalizationCountdown !== 0 ||
-      finalizing ||
-      !address
-    ) {
-      return;
-    }
-
-    void handleFinalize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    finalizationCountdown,
-    onChain?.closed,
-    onChain?.winnersFinalized,
-    address,
-  ]);
 
   async function handleJoin() {
     if (joining || isConnecting) return;
@@ -542,27 +500,25 @@ export default function ProllyDetailsPage() {
             {onChain.closed && !onChain.winnersFinalized && (
               <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
                 <p className="text-sm font-semibold text-amber-300">
-                  Waiting for Winner Finalization
+                  Anyone can Authorize GenLayer for Random Selection
                 </p>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  The pool is closed and frozen. Anyone may trigger the
-                  authoritative GenLayer winner selection.
+                  The Prolly is closed and frozen. Authorizing GenLayer begins
+                  the authoritative random selection and finalizes the winners
+                  on-chain.
                 </p>
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="text-sm text-zinc-500">
-                    Automatic attempt in {finalizationCountdown ?? 10}s
-                  </span>
+                <div className="mt-4">
                   <button
                     onClick={handleFinalize}
                     disabled={!address || finalizing}
-                    className="rounded-full bg-amber-400 px-5 py-2.5 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+                    className="w-full rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
                   >
-                    {finalizing ? "Finalizing..." : "Finalize Winners"}
+                    {finalizing ? "Authorizing GenLayer..." : "Authorize GenLayer"}
                   </button>
                 </div>
                 {!address && (
                   <p className="mt-3 text-xs text-zinc-600">
-                    Connect a wallet to submit the finalization transaction.
+                    Connect any wallet to authorize GenLayer.
                   </p>
                 )}
               </div>
