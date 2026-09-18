@@ -252,7 +252,7 @@ export default function ProllysPage() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, creator, sponsor, description..." className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none placeholder:text-zinc-600 focus:border-violet-500" />
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Statuses</option><option value="active">Active</option><option value="closing-soon">Closing Soon</option><option value="closed">Closed</option></select>
             <select value={creatorFilter} onChange={(event) => setCreatorFilter(event.target.value as CreatorFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Creators</option><option value="admin">Admin</option><option value="sponsor">Sponsor</option></select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TypeFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Types</option><option value="manual">Manual</option><option value="task">Task</option><option value="generated-link">Generated Link</option></select>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TypeFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Types</option><option value="manual">Manual</option><option value="task">Task</option><option value="generated-link">Preview Link</option></select>
             <button onClick={() => setFavoritesOnly((current) => !current)} className={`rounded-xl border px-4 py-3 text-sm font-medium ${favoritesOnly ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-zinc-700 hover:bg-zinc-800"}`}>{favoritesOnly ? "♥ Favorites" : "♡ Favorites"}</button>
           </div>
         </div>
@@ -287,7 +287,7 @@ export default function ProllysPage() {
                   <div className="p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-400">{prolly.creatorRole}</span>{postType !== "all" && <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">{postType === "generated-link" ? "Generated Link" : postType}</span>}</div>
+                        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-400">{prolly.creatorRole}</span>{postType !== "all" && <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">{postType === "generated-link" ? "Preview Link" : postType}</span>}</div>
                         <h2 className="mt-3 text-2xl font-bold">{prolly.title || chain.name || "Untitled Prolly"}</h2>
                       </div>
                       <button onClick={() => toggleFavorite(prolly.onChainId ?? prolly.id)} aria-label={isFavorite ? "Remove favorite" : "Add favorite"} className="text-2xl leading-none text-zinc-400 hover:text-white">{isFavorite ? "♥" : "♡"}</button>
