@@ -63,7 +63,16 @@ function TaskQualificationReview() {
     .sort((a, b) => b.submittedAt - a.submittedAt);
 
   if (submissions.length === 0) {
-    return <div className="px-6 py-12 text-center text-sm text-zinc-500">No Task submissions yet.</div>;
+    return (
+      <div>
+        <div className="border-b border-amber-500/20 bg-amber-500/5 px-6 py-4 text-sm leading-6 text-amber-200">
+          Task qualification is currently a browser-local prototype. It controls
+          eligibility in this UI only; it never selects winners or changes
+          GenLayer randomness.
+        </div>
+        <div className="px-6 py-12 text-center text-sm text-zinc-500">No Task submissions yet.</div>
+      </div>
+    );
   }
 
   return (
