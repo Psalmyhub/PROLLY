@@ -116,8 +116,6 @@ export default function ProllysPage() {
 
             const prizePool = prolly.entryAmount * prolly.participants;
 
-            const hasJoined = joined.includes(prolly.id);
-
             return (
               <div
                 key={prolly.id}
