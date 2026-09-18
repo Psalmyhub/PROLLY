@@ -117,6 +117,7 @@ export default function SponsorPage() {
         <h1 className="mt-4 text-4xl font-bold">
           Become a Prolly sponsor.
         </h1>
+        <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-sm leading-6 text-zinc-400"><p className="font-semibold text-cyan-300">Two Sponsor Prolly formats</p><p className="mt-2">Link Prolly: a private sponsor-held access link distributed through your community or social channels. Manual Prolly: a sponsor-selected participant list. There are no sponsor or participant fees.</p></div>
 
         {!isConnected ? (
           <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8">
@@ -145,8 +146,7 @@ export default function SponsorPage() {
             </h2>
             <p className="mt-3 leading-7 text-zinc-400">
               Your wallet is approved for the Sponsor workspace. Sponsor
-              campaign creation remains subject to the current on-chain
-              contract architecture.
+              campaign creation currently uses the Sponsor workspace prototype. The two sponsor formats are Link Prolly and Manual Prolly; both are free.
             </p>
             <Link
               href="/sponsor/dashboard"
