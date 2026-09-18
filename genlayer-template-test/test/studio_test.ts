@@ -11,7 +11,7 @@ const client = createClient({
 
 async function read(
   functionName: string,
-  args: any[] = [],
+  args: unknown[] = [],
 ) {
   return client.readContract({
     address: CONTRACT,
