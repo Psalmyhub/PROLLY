@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useConnect } from "wagmi";
+import { loadFavoriteProllyIds, toggleFavoriteProlly } from "@/lib/favorite-store";
 
 import { loadProllys, saveProllys, type Prolly } from "@/lib/prolly-store";
 import {
@@ -12,7 +13,6 @@ import {
   type OnChainProlly,
 } from "@/lib/genlayer";
 
-const FAVORITES_KEY = "prolly-favorites";
 type StatusFilter = "all" | "active" | "closing-soon" | "closed";
 type CreatorFilter = "all" | "admin" | "sponsor";
 type TypeFilter = "all" | "manual" | "task" | "generated-link";
@@ -90,20 +90,15 @@ export default function ProllysPage() {
 
   useEffect(() => {
     setMounted(true);
-    try {
-      const saved = localStorage.getItem(FAVORITES_KEY);
-      if (saved) setFavorites(JSON.parse(saved) as string[]);
-    } catch {
-      setFavorites([]);
-    }
   }, []);
 
+  useEffect(() => {
+    setFavorites(address ? loadFavoriteProllyIds(address) : []);
+  }, [address]);
+
   function toggleFavorite(id: string) {
-    setFavorites((current) => {
-      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
-      localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
-      return next;
-    });
+    if (!address) return;
+    setFavorites(toggleFavoriteProlly(address, id));
   }
 
   async function loadData() {
