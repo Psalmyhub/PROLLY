@@ -24,21 +24,25 @@ export type SponsorCampaign = {
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
 
+function stringValue(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
 function migrate(item: Record<string, unknown>): SponsorCampaign {
   return {
-    id: item.id ?? `sponsor-${Date.now()}`,
-    ownerWallet: item.ownerWallet ?? "",
-    topic: item.topic ?? item.title ?? "",
-    description: item.description ?? "",
+    id: stringValue(item.id, `sponsor-${Date.now()}`),
+    ownerWallet: stringValue(item.ownerWallet),
+    topic: stringValue(item.topic, stringValue(item.title)),
+    description: stringValue(item.description),
     type: item.type === "manual" ? "manual" : "link",
     winnerCount: Number(item.winnerCount ?? 1),
     maxParticipants: Number(item.maxParticipants ?? 1),
     participantsJoined: Number(item.participantsJoined ?? 0),
-    selectedParticipants: Array.isArray(item.selectedParticipants) ? item.selectedParticipants : [],
+    selectedParticipants: Array.isArray(item.selectedParticipants) ? item.selectedParticipants as SponsorParticipant[] : [],
     startAt: typeof item.startAt === "number" ? item.startAt : undefined,
     accessOpensAt: typeof item.accessOpensAt === "number" ? item.accessOpensAt : undefined,
-    accessToken: item.accessToken,
-    communityLinks: Array.isArray(item.communityLinks) ? item.communityLinks : [],
+    accessToken: typeof item.accessToken === "string" ? item.accessToken : undefined,
+    communityLinks: Array.isArray(item.communityLinks) ? item.communityLinks as SponsorCommunityLink[] : [],
     createdAt: Number(item.createdAt ?? Date.now()),
     status: item.status === "published" ? "published" : "draft",
   };
