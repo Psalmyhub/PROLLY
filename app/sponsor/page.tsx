@@ -3,37 +3,54 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import WorkspaceSwitcher from "@/app/components/WorkspaceSwitcher";
+import { PROLLY_CONTRACT_OWNER } from "@/lib/genlayer";
 import {
   getRole,
+  getSponsorApplication,
   submitSponsorApplication,
   type UserRole,
 } from "@/lib/role-store";
 
-const ADMIN_ADDRESS =
-  process.env.NEXT_PUBLIC_ADMIN_WALLET_ADDRESS;
+const ADMIN_ADDRESS = PROLLY_CONTRACT_OWNER;
 
 export default function SponsorPage() {
   const { address, isConnected } = useAccount();
-
-    const [role, setRole] = useState<UserRole>(() =>
-    address ? getRole(address, ADMIN_ADDRESS) : "user",
-  );
+  const [mounted, setMounted] = useState(false);
+  const [role, setRole] = useState<UserRole>("user");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [website, setWebsite] = useState("");
   const [message, setMessage] = useState("");
-  const [mounted] = useState(true);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-useEffect(() => {
-  if (!address) return;
-}, [address]);useEffect(() => {
-  if (!address) return;
-}, [address]);
+  useEffect(() => {
+    if (!address) {
+      setRole("user");
+      return;
+    }
+
+    setRole(getRole(address, ADMIN_ADDRESS));
+
+    const application = getSponsorApplication(address);
+    if (application) {
+      setName(application.name);
+      setDescription(application.description);
+      setWebsite(application.website ?? "");
+    }
+  }, [address]);
 
   function apply() {
     if (!address) {
       setMessage("Please connect your wallet first.");
+      return;
+    }
+
+    if (role === "admin") {
+      setMessage("Admin wallets already have administrator access.");
       return;
     }
 
@@ -63,33 +80,32 @@ useEffect(() => {
   }
 
   if (!mounted) {
+    return (
+      <main className="min-h-screen bg-zinc-950 text-white">
+        <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
+          <p className="text-zinc-400">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
-      <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
-        <p className="text-zinc-400">Loading...</p>
-      </div>
-    </main>
-  );
-}
-
-return (
-  <main className="min-h-screen bg-zinc-950 text-white">
-
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
-          <Link
-            href="/"
-            className="text-2xl font-bold tracking-tight"
-          >
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-6 md:flex-row md:items-center md:justify-between">
+          <Link href="/" className="text-2xl font-bold tracking-tight">
             PROLLY<span className="text-violet-400">.</span>
           </Link>
 
-          <Link
-            href="/prollys"
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-800"
-          >
-            Explore
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/prollys"
+              className="rounded-full border border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-800"
+            >
+              Explore
+            </Link>
+            <WorkspaceSwitcher />
+          </div>
         </div>
       </nav>
 
@@ -105,55 +121,46 @@ return (
         {!isConnected ? (
           <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8">
             <p className="text-zinc-400">
-              Connect your wallet first to apply for sponsor
-              status.
+              Connect your wallet first to apply for sponsor status.
             </p>
           </div>
         ) : role === "admin" ? (
           <div className="mt-8 rounded-3xl border border-violet-500/30 bg-violet-500/10 p-8">
-            <h2 className="text-xl font-semibold">
-              Admin account
-            </h2>
-
-            <p className="mt-3 text-zinc-400">
-              This wallet has administrator privileges.
+            <h2 className="text-xl font-semibold">Admin account</h2>
+            <p className="mt-3 leading-7 text-zinc-400">
+              This wallet has administrator privileges and can open both
+              workspaces.
             </p>
-
-            <a
+            <Link
               href="/admin"
               className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold"
             >
-              Open Admin Dashboard
-            </a>
+              Open Admin Workspace
+            </Link>
           </div>
         ) : role === "sponsor" ? (
-          <div className="mt-8 rounded-3xl border border-violet-500/30 bg-violet-500/10 p-8">
+          <div className="mt-8 rounded-3xl border border-cyan-500/30 bg-cyan-500/10 p-8">
             <h2 className="text-2xl font-semibold">
               You are an approved sponsor.
             </h2>
-
-            <p className="mt-3 text-zinc-400">
-              Your wallet has been approved to create sponsor
-              campaigns.
+            <p className="mt-3 leading-7 text-zinc-400">
+              Your wallet is approved for the Sponsor workspace. Sponsor
+              campaign creation remains subject to the current on-chain
+              contract architecture.
             </p>
-
-            <a
+            <Link
               href="/sponsor/dashboard"
-              className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold"
+              className="mt-6 inline-block rounded-full bg-cyan-500 px-6 py-3 font-semibold text-black"
             >
-              Sponsor Dashboard
-            </a>
+              Open Sponsor Workspace
+            </Link>
           </div>
         ) : role === "sponsor_pending" ? (
           <div className="mt-8 rounded-3xl border border-yellow-500/20 bg-yellow-500/5 p-8">
-            <h2 className="text-2xl font-semibold">
-              Application pending
-            </h2>
-
+            <h2 className="text-2xl font-semibold">Application pending</h2>
             <p className="mt-3 leading-7 text-zinc-400">
-              Your sponsor application has been submitted.
-              An admin must approve your wallet before you can
-              create sponsor campaigns.
+              Your sponsor application has been submitted. An admin must
+              approve your wallet before sponsor workspace access is granted.
             </p>
           </div>
         ) : (
