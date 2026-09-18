@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import {
   loadSponsorCampaigns,
   saveSponsorCampaigns,
+  removeSponsorCampaign,
   type SponsorCampaign,
 } from "@/lib/sponsor-store";
 import { useEffect, useState } from "react";
@@ -60,6 +61,13 @@ export default function SponsorDashboard() {
     }
     setCampaigns(loadSponsorCampaigns(address) as Campaign[]);
   }, [address]);
+
+  function deleteCampaign(campaignId: string) {
+    if (!address) return;
+    removeSponsorCampaign(address, campaignId);
+    setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
+    setMessage("Campaign brief deleted from this browser.");
+  }
 
   function createCampaign() {
     if (!title.trim() || !description.trim()) {
@@ -159,9 +167,9 @@ export default function SponsorDashboard() {
         </p>
         <h1 className="mt-4 text-4xl font-bold">Build your campaign brief.</h1>
         <p className="mt-4 max-w-3xl text-zinc-400">
-          Prepare a sponsor Prolly using one of the three supported post
-          formats. This dashboard does not decide winners and does not alter
-          the deployed GenLayer contract.
+          Prepare a sponsor campaign brief using one of the three supported post
+          formats. This workspace is planning-only until sponsor creation is
+          supported by the deployed GenLayer contract. It never decides winners.
         </p>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -321,12 +329,13 @@ export default function SponsorDashboard() {
                     </div>
                     {campaign.type === "generated-link" && campaign.accessCode && (
                       <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-                        <p className="text-xs uppercase tracking-widest text-cyan-300">Generated access link</p>
+                        <p className="text-xs uppercase tracking-widest text-cyan-300">Preview link</p>
                         <p className="mt-2 break-all text-sm text-cyan-200">
                           {typeof window !== "undefined"
                             ? window.location.origin + "/sponsor/campaign/" + campaign.accessCode
                             : "/sponsor/campaign/" + campaign.accessCode}
                         </p>
+                        <p className="mt-2 text-xs leading-5 text-zinc-500">Browser-local preview only. It does not create a public campaign, participant, or on-chain Prolly.</p>
                         <button
                           onClick={() => {
                             const link = window.location.origin + "/sponsor/campaign/" + campaign.accessCode;
@@ -335,10 +344,18 @@ export default function SponsorDashboard() {
                           }}
                           className="mt-3 rounded-full border border-cyan-500/30 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
                         >
-                          Copy link
+                          Copy preview link
                         </button>
                       </div>
                     )}
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        onClick={() => deleteCampaign(campaign.id)}
+                        className="rounded-full border border-red-500/20 px-4 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10"
+                      >
+                        Delete brief
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
