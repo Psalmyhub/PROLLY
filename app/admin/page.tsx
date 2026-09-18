@@ -654,12 +654,16 @@ export default function AdminPage() {
     walletAddress: string,
     status:
       | "approved"
+      | "removed"
       | "rejected",
   ) {
-    if (status === "rejected" && !confirm("Remove this wallet from the sponsor role? They will lose sponsor workspace access.")) return;
+    if (
+      (status === "rejected" || status === "removed") &&
+      !confirm("Remove this wallet from the sponsor role? They will lose sponsor workspace access.")
+    ) return;
     updateSponsorApplicationStatus(
       walletAddress,
-      status,
+      status === "rejected" ? "removed" : status,
     );
 
     setSponsorApplications(
