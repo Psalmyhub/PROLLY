@@ -257,7 +257,6 @@ export default function ProllysPage() {
               const isFavorite = favorites.includes(prolly.onChainId ?? prolly.id);
               const progress = maxParticipants > 0 ? Math.min((participantCount / maxParticipants) * 100, 100) : 0;
               const status = getStatus(chain, prolly);
-              const postType = prolly.creatorRole === "sponsor" ? getPostType(prolly) : "all";
 
               return (
                 <article key={chain.id.toString()} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50">
