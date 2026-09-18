@@ -36,12 +36,16 @@ type Eip1193Provider = {
   request(args: { method: string; params?: unknown[] }): Promise<unknown>;
 };
 
+type WindowWithEthereum = Window & {
+  ethereum?: Eip1193Provider;
+};
+
 function getProvider(): Eip1193Provider {
   if (typeof window === "undefined") {
     throw new Error("Wallet is only available in the browser.");
   }
 
-  const provider = (window as any).ethereum;
+  const provider = (window as WindowWithEthereum).ethereum;
 
   if (!provider) {
     throw new Error("No Ethereum wallet was found.");
@@ -51,7 +55,7 @@ function getProvider(): Eip1193Provider {
     throw new Error("Connected wallet provider is invalid.");
   }
 
-  return provider as Eip1193Provider;
+  return provider;
 }
 
 /*
@@ -79,9 +83,9 @@ function getReadClient() {
  */
 async function getWriteClient(account: Address) {
   const provider = getProvider();
-  const accounts = (await provider.request({
+  const accounts = await provider.request({
     method: "eth_accounts",
-  })) as unknown;
+  });
   const connectedAccounts = Array.isArray(accounts)
     ? accounts.map(String)
     : [];
@@ -240,10 +244,6 @@ export async function createProlly(
   maxParticipants: bigint,
   winnerCount: bigint,
 ): Promise<{ prollyId: bigint; hash: string }> {
-  /*
-   * Determine the ID before creation because the contract increments
-   * its internal next_prolly_id after creating the Prolly.
-   */
   requireContractOwner(account);
   const client = await getWriteClient(account);
 
@@ -475,7 +475,7 @@ export async function getParticipantCount(
   const result = await client.readContract({
     address: PROLLY_CONTRACT_ADDRESS,
     functionName: "get_participant_count",
-    args: [BigInt(prollyId)],
+    args: [BigInt(prollyId),],
   });
 
   return asBigInt(result);
