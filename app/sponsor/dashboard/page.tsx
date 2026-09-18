@@ -16,6 +16,7 @@ type Campaign = {
   instructions: string;
   reference: string;
   createdAt: number;
+  accessCode?: string;
 };
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
@@ -40,6 +41,10 @@ export default function SponsorDashboard() {
   const [reference, setReference] = useState("");
   const [message, setMessage] = useState("");
 
+  function makeAccessCode() {
+    return Math.random().toString(36).slice(2, 10).toUpperCase();
+  }
+
   const approved =
     !!address && getRole(address, PROLLY_CONTRACT_OWNER) === "sponsor";
 
@@ -61,6 +66,7 @@ export default function SponsorDashboard() {
       instructions: instructions.trim(),
       reference: reference.trim(),
       createdAt: Date.now(),
+      accessCode: type === "generated-link" ? makeAccessCode() : undefined,
     };
 
     const next = [campaign, ...campaigns];
@@ -252,6 +258,26 @@ export default function SponsorDashboard() {
                     <p className="mt-3 text-sm leading-6 text-zinc-400">
                       {campaign.description}
                     </p>
+                    {campaign.type === "generated-link" && campaign.accessCode && (
+                      <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                        <p className="text-xs uppercase tracking-widest text-cyan-300">Generated access link</p>
+                        <p className="mt-2 break-all text-sm text-cyan-200">
+                          {typeof window !== "undefined"
+                            ? window.location.origin + "/sponsor/campaign/" + campaign.accessCode
+                            : "/sponsor/campaign/" + campaign.accessCode}
+                        </p>
+                        <button
+                          onClick={() => {
+                            const link = window.location.origin + "/sponsor/campaign/" + campaign.accessCode;
+                            void navigator.clipboard?.writeText(link);
+                            setMessage("Generated campaign link copied.");
+                          }}
+                          className="mt-3 rounded-full border border-cyan-500/30 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                        >
+                          Copy link
+                        </button>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
