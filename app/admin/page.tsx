@@ -13,6 +13,7 @@ import {
 } from "@/lib/prolly-store";
 
 import { loadProfile } from "@/lib/profile-store";
+import { calculateProllyEconomics, formatBpsAsPercent, formatGenAmount } from "@/lib/economics";
 
 import { loadTaskSubmissions, updateTaskSubmissionStatus, type TaskSubmission } from "@/lib/task-store";
 
@@ -210,6 +211,22 @@ export default function AdminPage() {
 
   const [winners, setWinners] =
     useState("10");
+
+  const economicsPreview = useMemo(() => {
+    try {
+      const fee = BigInt(Math.round(Number(entryFee) * 1_000_000_000_000_000_000));
+      const max = BigInt(maxParticipants || "0");
+      const winnerCount = BigInt(winners || "0");
+
+      if (fee <= 0n || max <= 0n || winnerCount <= 0n || winnerCount > max) {
+        return null;
+      }
+
+      return calculateProllyEconomics(fee, max, max, winnerCount);
+    } catch {
+      return null;
+    }
+  }, [entryFee, maxParticipants, winners]);
 
   useEffect(() => {
     setMounted(true);
@@ -1192,6 +1209,37 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
+
+              {economicsPreview && (
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-200">Economics preview</p>
+                      <p className="mt-1 text-xs text-zinc-500">Calculated from the values above before the transaction is submitted.</p>
+                    </div>
+                    <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-400">Transparent</span>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                      <p className="text-xs text-zinc-500">Maximum pool</p>
+                      <p className="mt-1 text-lg font-bold text-zinc-100">{formatGenAmount(economicsPreview.maxPool)} GEN</p>
+                    </div>
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                      <p className="text-xs text-zinc-500">Full-capacity chance</p>
+                      <p className="mt-1 text-lg font-bold text-zinc-100">{formatBpsAsPercent(economicsPreview.maxWinProbabilityBps)}</p>
+                    </div>
+                    <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                      <p className="text-xs text-zinc-500">Winners</p>
+                      <p className="mt-1 text-lg font-bold text-zinc-100">{winners} of {maxParticipants}</p>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-xs leading-5 text-zinc-500">
+                    Every participant has the same selection probability. The entry payment does not increase or decrease an individual participant&apos;s odds.
+                  </p>
+                </div>
+              )}
 
               <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
                 <p className="text-sm font-semibold text-violet-300">
