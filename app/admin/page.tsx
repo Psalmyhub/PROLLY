@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import WorkspaceSwitcher from "@/app/components/WorkspaceSwitcher";
 
 import {
   loadProllys,
@@ -625,6 +626,7 @@ export default function AdminPage() {
       | "approved"
       | "rejected",
   ) {
+    if (status === "rejected" && !confirm("Remove this wallet from the sponsor role? They will lose sponsor workspace access.")) return;
     updateSponsorApplicationStatus(
       walletAddress,
       status,
@@ -660,6 +662,7 @@ export default function AdminPage() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <WorkspaceSwitcher />
             <Link
               href="/prollys"
               className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
@@ -837,29 +840,14 @@ export default function AdminPage() {
                       {application.status ===
                         "pending" && (
                         <div className="flex shrink-0 gap-2">
-                          <button
-                            onClick={() =>
-                              handleSponsorDecision(
-                                application.walletAddress,
-                                "approved",
-                              )
-                            }
-                            className="rounded-full bg-green-500 px-5 py-2 text-sm font-semibold text-black hover:bg-green-400"
-                          >
-                            Approve Sponsor
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              handleSponsorDecision(
-                                application.walletAddress,
-                                "rejected",
-                              )
-                            }
-                            className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10"
-                          >
-                            Reject
-                          </button>
+                          {application.status === "pending" ? (
+                            <>
+                              <button onClick={() => handleSponsorDecision(application.walletAddress, "approved")} className="rounded-full bg-green-500 px-5 py-2 text-sm font-semibold text-black hover:bg-green-400">Approve Sponsor</button>
+                              <button onClick={() => handleSponsorDecision(application.walletAddress, "rejected")} className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10">Reject</button>
+                            </>
+                          ) : application.status === "approved" ? (
+                            <button onClick={() => handleSponsorDecision(application.walletAddress, "rejected")} className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10">Remove Sponsor Role</button>
+                          ) : null}
                         </div>
                       )}
                     </div>
