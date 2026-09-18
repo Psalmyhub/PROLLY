@@ -204,21 +204,30 @@ export default function ProllyBattlePage() {
   useEffect(() => {
     if (!canWatch || (winners.length === 0 && battleEvents.length === 0)) return;
 
-    setRevealedCount(0);
     setBattleEventIndex(0);
+    setRevealedCount(0);
+
     const timer = window.setInterval(() => {
       setBattleEventIndex((current) => {
         if (current >= battleEvents.length) {
           window.clearInterval(timer);
           return current;
         }
+
         return current + 1;
       });
-      setRevealedCount(battleEvents.slice(0, current + 1).filter((event) => event.winner).length);
     }, 1100);
 
     return () => window.clearInterval(timer);
   }, [canWatch, battleEvents, winners.length, id]);
+
+  useEffect(() => {
+    setRevealedCount(
+      battleEvents
+        .slice(0, battleEventIndex)
+        .filter((event) => event.winner).length,
+    );
+  }, [battleEventIndex, battleEvents]);
 
   if (loading) {
     return (
