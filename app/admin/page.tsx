@@ -38,7 +38,8 @@ const ADMIN_ADDRESS =
   PROLLY_CONTRACT_OWNER;
 
 function TaskQualificationReview() {
-  const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);\n  const [filter, setFilter] = useState<"all" | "pending" | "qualified" | "rejected">("pending");
+  const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
+  const [filter, setFilter] = useState<"all" | "pending" | "qualified" | "rejected">("pending");
 
   function refresh() {
     setSubmissions(loadTaskSubmissions());
@@ -56,7 +57,12 @@ function TaskQualificationReview() {
     refresh();
   }
 
-  const visibleSubmissions = submissions\n    .filter((submission) => filter === "all" || submission.status === filter)\n    .slice()\n    .sort((a, b) => b.submittedAt - a.submittedAt);\n\n  if (submissions.length === 0) {
+  const visibleSubmissions = submissions
+    .filter((submission) => filter === "all" || submission.status === filter)
+    .slice()
+    .sort((a, b) => b.submittedAt - a.submittedAt);
+
+  if (submissions.length === 0) {
     return <div className="px-6 py-12 text-center text-sm text-zinc-500">No Task submissions yet.</div>;
   }
 
