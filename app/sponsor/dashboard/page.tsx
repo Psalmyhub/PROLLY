@@ -34,7 +34,7 @@ type Campaign = {
 export default function SponsorDashboard() {
   const { address } = useAccount();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [type, setType] = useState<CampaignType>("task");
+  const [type, setType] = useState<CampaignType>("manual");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
