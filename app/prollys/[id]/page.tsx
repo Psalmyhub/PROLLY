@@ -22,6 +22,7 @@ import {
 } from "@/lib/prolly-store";
 
 import { loadProfile } from "@/lib/profile-store";
+import { calculateProllyEconomics, formatBpsAsPercent, formatGenAmount } from "@/lib/economics";
 
 import {
   loadTaskSubmission,
@@ -126,6 +127,8 @@ export default function ProllyDetailsPage() {
   const [taskReference, setTaskReference] = useState("");
   const [taskSubmission, setTaskSubmission] = useState<TaskSubmission | null>(null);
   const [submittingTask, setSubmittingTask] = useState(false);
+
+  const economics = onChain ? calculateProllyEconomics(onChain.entryFee, onChain.participantCount, onChain.maxParticipants, onChain.winnerCount) : null;
 
   useEffect(() => {
     setMounted(true);
@@ -542,6 +545,24 @@ export default function ProllyDetailsPage() {
                 />
               </div>
             </div>
+
+          <section className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Economics</p>
+            <h2 className="mt-2 text-2xl font-bold">Transparent pool</h2>
+            <p className="mt-2 text-sm text-zinc-500">Every participant pays the same entry fee. Payment amount does not change winner probability.</p>
+            {economics && (
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Entry fee</p><p className="mt-2 text-xl font-bold">{formatGenAmount(economics.entryFee)} GEN</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Current pool</p><p className="mt-2 text-xl font-bold">{formatGenAmount(economics.currentPool)} GEN</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Maximum pool</p><p className="mt-2 text-xl font-bold">{formatGenAmount(economics.maxPool)} GEN</p></div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Selection probability</p><p className="mt-2 text-xl font-bold">{formatBpsAsPercent(economics.currentWinProbabilityBps)}</p></div>
+              </div>
+            )}
+            <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+              <p className="text-sm font-semibold text-amber-300">Current contract economics</p>
+              <p className="mt-2 text-xs leading-6 text-zinc-500">The deployed contract records entry payments and participant state, but it does not currently expose a prize-payout, platform-fee, or withdrawal mechanism. This page therefore shows the transparent pool amount only; it does not promise a payout the deployed contract cannot execute.</p>
+            </div>
+          </section>
 
             <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
