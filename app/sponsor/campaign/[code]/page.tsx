@@ -20,7 +20,7 @@ type Campaign = {
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
 
-export default function CampaignAccessPage() {
+export default function CampaignPreviewPage() {
   const params = useParams();
   const code = String(params.code);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -44,8 +44,8 @@ export default function CampaignAccessPage() {
     return (
       <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center px-6">
         <div className="max-w-lg text-center">
-          <h1 className="text-3xl font-bold">Campaign link not found</h1>
-          <p className="mt-4 text-zinc-500">This generated campaign link is not available in this browser prototype.</p>
+          <h1 className="text-3xl font-bold">Campaign preview not found</h1>
+          <p className="mt-4 text-zinc-500">This preview is not available in this browser. Sponsor previews are browser-local.</p>
           <Link href="/prollys" className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold">Explore Prollys</Link>
         </div>
       </main>
@@ -61,7 +61,7 @@ export default function CampaignAccessPage() {
         </div>
       </nav>
       <section className="mx-auto max-w-3xl px-6 py-16">
-        <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">Sponsor Campaign</p>
+        <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">Sponsor Campaign Preview</p>
         <h1 className="mt-4 text-4xl font-bold">{campaign.title}</h1>
         <p className="mt-5 text-lg leading-8 text-zinc-400">{campaign.description}</p>
         {campaign.instructions && (
@@ -93,7 +93,7 @@ export default function CampaignAccessPage() {
                 <p className="mt-1 text-lg font-bold">{((Number(campaign.winnerCount) / Number(campaign.maxParticipants)) * 100).toFixed(2)}%</p>
               </div>
             </div>
-            <p className="mt-4 text-xs leading-5 text-zinc-500">Planning information only. This campaign page does not create an on-chain Prolly or promise payouts.</p>
+            <p className="mt-4 text-xs leading-5 text-zinc-500">Planning information only. This preview does not create an on-chain Prolly or promise payouts.</p>
           </div>
         )}
 
