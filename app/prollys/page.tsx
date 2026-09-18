@@ -87,6 +87,7 @@ export default function ProllysPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [taskSubmissions, setTaskSubmissions] = useState<Record<string, TaskSubmission>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -94,6 +95,13 @@ export default function ProllysPage() {
 
   useEffect(() => {
     setFavorites(address ? loadFavoriteProllyIds(address) : []);
+  }, [address]);
+
+  useEffect(() => {
+    const wallet = address?.toLowerCase();
+    if (!wallet) { setTaskSubmissions({}); return; }
+    const items = loadTaskSubmissions().filter((item) => item.wallet.toLowerCase() === wallet);
+    setTaskSubmissions(Object.fromEntries(items.map((item) => [item.prollyId, item])));
   }, [address]);
 
   function toggleFavorite(id: string) {
@@ -210,7 +218,7 @@ export default function ProllysPage() {
       if (statusFilter !== "all" && getStatus(chain, prolly) !== statusFilter) return false;
       return true;
     });
-  }, [prollys, onChainProllys, search, creatorFilter, typeFilter, favoritesOnly, favorites, statusFilter]);
+  }, [prollys, onChainProllys, search, creatorFilter, typeFilter, favoritesOnly, favorites, statusFilter, taskSubmissions]);
 
   if (!mounted) {
     return <main className="min-h-screen bg-zinc-950 text-white"><div className="flex min-h-screen items-center justify-center"><p className="text-zinc-400">Loading...</p></div></main>;
@@ -261,6 +269,7 @@ export default function ProllysPage() {
               const isFull = participantCount >= maxParticipants;
               const isClosed = chain.closed;
               const isJoined = !!prolly.onChainId && !!joinedStates[prolly.onChainId];
+              const taskSubmission = prolly.onChainId ? taskSubmissions[prolly.onChainId] : undefined;
               const isFavorite = favorites.includes(prolly.onChainId ?? prolly.id);
               const progress = maxParticipants > 0 ? Math.min((participantCount / maxParticipants) * 100, 100) : 0;
               const status = getStatus(chain, prolly);
@@ -280,7 +289,7 @@ export default function ProllysPage() {
                     <p className="mt-3 min-h-14 text-sm leading-6 text-zinc-400">{prolly.description || "No description provided."}</p>
                     <div className="mt-6 flex h-40 items-center justify-center rounded-2xl bg-zinc-800"><span className="text-sm text-zinc-600">Prolly image</span></div>
 
-                    <div className="mt-6 flex items-center justify-between text-sm"><div><p className="text-zinc-500">Creator</p><p className="mt-1 font-medium">@{prolly.creatorUsername || "admin"}</p></div><div className="text-right"><p className="text-zinc-500">Status</p><p className="mt-1 font-medium capitalize">{status.replace("-", " ")}</p></div></div>
+                    <div className="mt-6 flex items-center justify-between text-sm"><div><p className="text-zinc-500">Creator</p><p className="mt-1 font-medium">@{prolly.creatorUsername || "admin"}</p></div><div className="text-right"><p className="text-zinc-500">Status</p><p className="mt-1 font-medium capitalize">{status.replace("-", " ")}{taskSubmission ? " · " + taskSubmission.status : ""}</p></div></div>
 
                     <div className="mt-5 space-y-3 text-sm">
                       <div className="flex justify-between"><span className="text-zinc-500">Entry</span><span className="font-medium">{formatGen(chain.entryFee)} GEN</span></div>
