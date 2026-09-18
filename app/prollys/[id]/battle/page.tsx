@@ -214,7 +214,7 @@ export default function ProllyBattlePage() {
         }
         return current + 1;
       });
-      setRevealedCount(winnerEventsRevealed);
+      setRevealedCount(battleEvents.slice(0, current + 1).filter((event) => event.winner).length);
     }, 1100);
 
     return () => window.clearInterval(timer);
