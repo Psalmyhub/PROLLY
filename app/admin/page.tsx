@@ -119,6 +119,7 @@ function TaskQualificationReview() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }
