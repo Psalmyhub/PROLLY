@@ -24,7 +24,7 @@ export type SponsorCampaign = {
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
 
-function migrate(item: any): SponsorCampaign {
+function migrate(item: Record<string, unknown>): SponsorCampaign {
   return {
     id: item.id ?? `sponsor-${Date.now()}`,
     ownerWallet: item.ownerWallet ?? "",
@@ -48,7 +48,7 @@ export function loadAllSponsorCampaigns(): SponsorCampaign[] {
   if (typeof window === "undefined") return [];
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? (JSON.parse(saved) as unknown[]).map(migrate) : [];
+    return saved ? (JSON.parse(saved) as Record<string, unknown>[]).map(migrate) : [];
   } catch { return []; }
 }
 
