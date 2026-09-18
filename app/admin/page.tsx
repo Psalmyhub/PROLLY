@@ -67,8 +67,23 @@ function TaskQualificationReview() {
   }
 
   return (
-    <div className="divide-y divide-zinc-800">
-      {submissions.slice().sort((a, b) => b.submittedAt - a.submittedAt).map((submission) => (
+    <div>
+      <div className="flex flex-wrap gap-2 border-b border-zinc-800 p-4">
+        {(["pending", "qualified", "rejected", "all"] as const).map((value) => (
+          <button
+            key={value}
+            onClick={() => setFilter(value)}
+            className={`rounded-full border px-4 py-2 text-xs font-semibold ${filter === value ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-zinc-700 text-zinc-500"}`}
+          >
+            {value === "all" ? "All" : value[0].toUpperCase() + value.slice(1)}
+          </button>
+        ))}
+        <span className="ml-auto self-center text-xs text-zinc-600">
+          {visibleSubmissions.length} shown
+        </span>
+      </div>
+      <div className="divide-y divide-zinc-800">
+        {visibleSubmissions.map((submission) => (
         <div key={submission.prollyId + "-" + submission.wallet} className="p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1">
