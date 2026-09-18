@@ -13,6 +13,9 @@ type Campaign = {
   reference: string;
   createdAt: number;
   accessCode?: string;
+  entryFee?: string;
+  maxParticipants?: string;
+  winnerCount?: string;
 };
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
@@ -73,6 +76,27 @@ export default function CampaignAccessPage() {
             <p className="mt-3 break-all text-sm text-cyan-300">{campaign.reference}</p>
           </div>
         )}
+        {campaign.entryFee && campaign.maxParticipants && campaign.winnerCount && (
+          <div className="mt-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+            <p className="text-sm font-semibold uppercase tracking-widest text-cyan-300">Campaign economics</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-zinc-500">Entry fee</p>
+                <p className="mt-1 text-lg font-bold">{campaign.entryFee} GEN</p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500">Maximum pool</p>
+                <p className="mt-1 text-lg font-bold">{(Number(campaign.entryFee) * Number(campaign.maxParticipants)).toLocaleString()} GEN</p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-500">Full-capacity chance</p>
+                <p className="mt-1 text-lg font-bold">{((Number(campaign.winnerCount) / Number(campaign.maxParticipants)) * 100).toFixed(2)}%</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs leading-5 text-zinc-500">Planning information only. This campaign page does not create an on-chain Prolly or promise payouts.</p>
+          </div>
+        )}
+
         <div className="mt-8 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6">
           <p className="font-semibold text-amber-300">Prototype access page</p>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
