@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
@@ -35,6 +33,43 @@ import {
 
 const ADMIN_ADDRESS =
   PROLLY_CONTRACT_OWNER;
+
+type ProllyStatus = "active" | "closed";
+
+function formatGen(value: bigint): string {
+  const whole = value / BigInt("1000000000000000000");
+  const fraction = value % BigInt("1000000000000000000");
+  if (fraction === BigInt(0)) return whole.toString();
+  return `${whole}.${fraction.toString().padStart(18, "0").replace(/0+$/, "")}`;
+}
+
+function getLocalMetadata(onChain: OnChainProlly, localProllys: Prolly[]): Prolly {
+  const existing = localProllys.find((item) => item.onChainId === onChain.id.toString());
+  if (existing) {
+    return {
+      ...existing,
+      title: existing.title || onChain.name,
+      entryAmount: Number(formatGen(onChain.entryFee)),
+      maxParticipants: Number(onChain.maxParticipants),
+      winners: Number(onChain.winnerCount),
+      participants: Number(onChain.participantCount),
+    };
+  }
+  return {
+    id: `onchain-${onChain.id}`,
+    onChainId: onChain.id.toString(),
+    title: onChain.name,
+    description: "",
+    creatorUsername: "Admin",
+    creatorRole: "admin",
+    entryAmount: Number(formatGen(onChain.entryFee)),
+    participants: Number(onChain.participantCount),
+    maxParticipants: Number(onChain.maxParticipants),
+    winners: Number(onChain.winnerCount),
+    closingMode: "participants",
+    createdAt: Date.now(),
+  };
+}
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount();
