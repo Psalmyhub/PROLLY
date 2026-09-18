@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useConnect } from "wagmi";
 import { loadFavoriteProllyIds, toggleFavoriteProlly } from "@/lib/favorite-store";
+import { loadTaskSubmissions, type TaskSubmission } from "@/lib/task-store";
 
 import { loadProllys, saveProllys, type Prolly } from "@/lib/prolly-store";
 import {
@@ -171,6 +172,9 @@ export default function ProllysPage() {
     }
 
     if (joinedStates[prolly.onChainId ?? ""]) return alert("This wallet has already joined this Prolly.");
+    if (prolly.sponsorCategory === "task" && taskSubmissions[prolly.onChainId ?? ""]?.status !== "qualified") {
+      return alert("Complete and qualify the Task submission before joining this Task Prolly.");
+    }
     setSelectedProlly(prolly);
   }
 
@@ -274,6 +278,7 @@ export default function ProllysPage() {
               const progress = maxParticipants > 0 ? Math.min((participantCount / maxParticipants) * 100, 100) : 0;
               const status = getStatus(chain, prolly);
               const postType = prolly.creatorRole === "sponsor" ? getPostType(prolly) : "all";
+              const taskReady = prolly.sponsorCategory !== "task" || taskSubmission?.status === "qualified";
 
               return (
                 <article key={chain.id.toString()} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50">
@@ -301,7 +306,7 @@ export default function ProllysPage() {
 
                     <div className="mt-6 flex gap-3">
                       {!isClosed && !isJoined ? (
-                        <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{joining ? "Joining..." : "Join Prolly"}</button>
+                        <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting || (prolly.sponsorCategory === "task" && !taskReady)} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{prolly.sponsorCategory === "task" && !taskReady ? "Qualify Task First" : joining ? "Joining..." : "Join Prolly"}</button>
                       ) : !isClosed && isJoined ? (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-green-500/30 bg-green-500/10 px-5 py-3 font-semibold text-green-300">Joined</button>
                       ) : isClosed && isJoined && !chain.winnersFinalized ? (
