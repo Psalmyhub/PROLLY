@@ -23,6 +23,36 @@ import {
 
 import { loadProfile } from "@/lib/profile-store";
 
+const TASK_SUBMISSIONS_KEY = "prolly-task-submissions";
+
+type TaskSubmission = {
+  prollyId: string;
+  wallet: string;
+  response: string;
+  reference: string;
+  submittedAt: number;
+  status: "pending";
+};
+
+function loadTaskSubmission(prollyId: string, wallet?: string): TaskSubmission | null {
+  if (typeof window === "undefined" || !wallet) return null;
+  try {
+    const saved = localStorage.getItem(TASK_SUBMISSIONS_KEY);
+    const items = saved ? (JSON.parse(saved) as TaskSubmission[]) : [];
+    return items.find((item) => item.prollyId === prollyId && item.wallet.toLowerCase() === wallet.toLowerCase()) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function saveTaskSubmission(submission: TaskSubmission) {
+  const saved = localStorage.getItem(TASK_SUBMISSIONS_KEY);
+  const items = saved ? (JSON.parse(saved) as TaskSubmission[]) : [];
+  const next = items.filter((item) => !(item.prollyId === submission.prollyId && item.wallet.toLowerCase() === submission.wallet.toLowerCase()));
+  localStorage.setItem(TASK_SUBMISSIONS_KEY, JSON.stringify([...next, submission]));
+}
+
+
 function formatGen(value: bigint): string {
   const whole = value / BigInt("1000000000000000000");
   const fraction = value % BigInt("1000000000000000000");
@@ -116,6 +146,10 @@ export default function ProllyDetailsPage() {
   const [randomSeed, setRandomSeed] = useState<string>("");
   const [winnerAddresses, setWinnerAddresses] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [taskResponse, setTaskResponse] = useState("");
+  const [taskReference, setTaskReference] = useState("");
+  const [taskSubmission, setTaskSubmission] = useState<TaskSubmission | null>(null);
+  const [submittingTask, setSubmittingTask] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -184,6 +218,9 @@ export default function ProllyDetailsPage() {
   }
 
   useEffect(() => {
+    if (address && prolly?.sponsorCategory === "task") {
+      setTaskSubmission(loadTaskSubmission(id, address));
+    }
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, address, id]);
@@ -489,6 +526,26 @@ export default function ProllyDetailsPage() {
                   enters the authoritative random pool. This interface does
                   not select winners.
                 </p>
+              </div>
+            )}
+
+            {prolly.sponsorCategory === "task" && !joined && (
+              <div className="mt-6 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+                <p className="text-xs font-semibold uppercase tracking-widest text-cyan-300">Task submission</p>
+                <h2 className="mt-2 text-xl font-bold">Submit your task response</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">Your submission is collected for qualification. It does not select a winner. The authoritative random pool remains controlled by the GenLayer contract.</p>
+                {taskSubmission ? (
+                  <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <p className="font-semibold text-amber-300">Submission received — awaiting qualification</p>
+                    <p className="mt-2 text-xs text-zinc-500">Submitted {new Date(taskSubmission.submittedAt).toLocaleString()}</p>
+                  </div>
+                ) : (
+                  <>
+                    <textarea value={taskResponse} onChange={(e) => setTaskResponse(e.target.value)} rows={5} placeholder="Enter your task response or submission..." className="mt-5 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-cyan-400" />
+                    <input value={taskReference} onChange={(e) => setTaskReference(e.target.value)} placeholder="Optional proof/reference link" className="mt-3 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-cyan-400" />
+                    <button onClick={() => { if (!address) { setError("Connect your wallet before submitting."); return; } if (!taskResponse.trim()) { setError("Enter a task response first."); return; } setSubmittingTask(true); try { const submission = { prollyId: id, wallet: address, response: taskResponse.trim(), reference: taskReference.trim(), submittedAt: Date.now(), status: "pending" as const }; saveTaskSubmission(submission); setTaskSubmission(submission); setTaskResponse(""); setTaskReference(""); } finally { setSubmittingTask(false); } }} disabled={!address || submittingTask} className="mt-4 w-full rounded-full bg-cyan-400 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500">{submittingTask ? "Submitting..." : "Submit for Qualification"}</button>
+                  </>
+                )}
               </div>
             )}
 
