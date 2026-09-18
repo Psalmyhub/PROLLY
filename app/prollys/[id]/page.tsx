@@ -23,35 +23,11 @@ import {
 
 import { loadProfile } from "@/lib/profile-store";
 
-const TASK_SUBMISSIONS_KEY = "prolly-task-submissions";
-
-type TaskSubmission = {
-  prollyId: string;
-  wallet: string;
-  response: string;
-  reference: string;
-  submittedAt: number;
-  status: "pending";
-};
-
-function loadTaskSubmission(prollyId: string, wallet?: string): TaskSubmission | null {
-  if (typeof window === "undefined" || !wallet) return null;
-  try {
-    const saved = localStorage.getItem(TASK_SUBMISSIONS_KEY);
-    const items = saved ? (JSON.parse(saved) as TaskSubmission[]) : [];
-    return items.find((item) => item.prollyId === prollyId && item.wallet.toLowerCase() === wallet.toLowerCase()) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function saveTaskSubmission(submission: TaskSubmission) {
-  const saved = localStorage.getItem(TASK_SUBMISSIONS_KEY);
-  const items = saved ? (JSON.parse(saved) as TaskSubmission[]) : [];
-  const next = items.filter((item) => !(item.prollyId === submission.prollyId && item.wallet.toLowerCase() === submission.wallet.toLowerCase()));
-  localStorage.setItem(TASK_SUBMISSIONS_KEY, JSON.stringify([...next, submission]));
-}
-
+import {
+  loadTaskSubmission,
+  saveTaskSubmission,
+  type TaskSubmission,
+} from "@/lib/task-store";
 
 function formatGen(value: bigint): string {
   const whole = value / BigInt("1000000000000000000");
@@ -543,7 +519,7 @@ export default function ProllyDetailsPage() {
                   <>
                     <textarea value={taskResponse} onChange={(e) => setTaskResponse(e.target.value)} rows={5} placeholder="Enter your task response or submission..." className="mt-5 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-cyan-400" />
                     <input value={taskReference} onChange={(e) => setTaskReference(e.target.value)} placeholder="Optional proof/reference link" className="mt-3 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-cyan-400" />
-                    <button onClick={() => { if (!address) { setError("Connect your wallet before submitting."); return; } if (!taskResponse.trim()) { setError("Enter a task response first."); return; } setSubmittingTask(true); try { const submission = { prollyId: id, wallet: address, response: taskResponse.trim(), reference: taskReference.trim(), submittedAt: Date.now(), status: "pending" as const }; saveTaskSubmission(submission); setTaskSubmission(submission); setTaskResponse(""); setTaskReference(""); } finally { setSubmittingTask(false); } }} disabled={!address || submittingTask} className="mt-4 w-full rounded-full bg-cyan-400 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500">{submittingTask ? "Submitting..." : "Submit for Qualification"}</button>
+                    <button onClick={() => { if (!address) { setError("Connect your wallet before submitting."); return; } if (!taskResponse.trim()) { setError("Enter a task response first."); return; } setSubmittingTask(true); try { const submission: TaskSubmission = { prollyId: id, wallet: address, response: taskResponse.trim(), reference: taskReference.trim(), submittedAt: Date.now(), status: "pending" }; saveTaskSubmission(submission); setTaskSubmission(submission); setTaskResponse(""); setTaskReference(""); } finally { setSubmittingTask(false); } }} disabled={!address || submittingTask} className="mt-4 w-full rounded-full bg-cyan-400 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500">{submittingTask ? "Submitting..." : "Submit for Qualification"}</button>
                   </>
                 )}
               </div>
