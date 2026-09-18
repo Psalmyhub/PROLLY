@@ -880,7 +880,7 @@ export default function AdminPage() {
                               <button onClick={() => handleSponsorDecision(application.walletAddress, "rejected")} className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10">Reject</button>
                             </>
                           ) : application.status === "approved" ? (
-                            <button onClick={() => handleSponsorDecision(application.walletAddress, "rejected")} className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10">Remove Sponsor Role</button>
+                            <button onClick={() => handleSponsorDecision(application.walletAddress, "removed")} className="rounded-full border border-red-500/30 px-5 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10">Remove Sponsor Role</button>
                           ) : null}
                         </div>
                       )}
