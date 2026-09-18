@@ -511,9 +511,12 @@ export default function ProllyDetailsPage() {
                 <h2 className="mt-2 text-xl font-bold">Submit your task response</h2>
                 <p className="mt-2 text-sm leading-6 text-zinc-400">Your submission is collected for qualification. It does not select a winner. The authoritative random pool remains controlled by the GenLayer contract.</p>
                 {taskSubmission ? (
-                  <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <p className="font-semibold text-amber-300">Submission received — awaiting qualification</p>
+                  <div className={`mt-5 rounded-2xl border p-4 ${taskSubmission.status === "qualified" ? "border-green-500/20 bg-green-500/5" : taskSubmission.status === "rejected" ? "border-red-500/20 bg-red-500/5" : "border-amber-500/20 bg-amber-500/5"}`}>
+                    <p className={`font-semibold ${taskSubmission.status === "qualified" ? "text-green-300" : taskSubmission.status === "rejected" ? "text-red-300" : "text-amber-300"}`}>
+                      {taskSubmission.status === "qualified" ? "Qualified — eligible for the random pool" : taskSubmission.status === "rejected" ? "Rejected — this submission is not eligible" : "Submission received — awaiting qualification"}
+                    </p>
                     <p className="mt-2 text-xs text-zinc-500">Submitted {new Date(taskSubmission.submittedAt).toLocaleString()}</p>
+                    <p className="mt-2 text-xs text-zinc-600">Qualification controls eligibility only. It does not select the winner.</p>
                   </div>
                 ) : (
                   <>
