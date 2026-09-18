@@ -430,6 +430,68 @@ export default function ProllyDetailsPage() {
                 "Join this Prolly for a chance to become one of the randomly selected winners."}
             </p>
 
+            {prolly.sponsorCategory === "task" && (
+              <div className="mt-7 rounded-3xl border border-violet-500/20 bg-violet-500/5 p-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
+                      Sponsor Task
+                    </p>
+                    <h2 className="mt-2 text-xl font-bold">
+                      Complete the task to qualify
+                    </h2>
+                  </div>
+                  <span className="rounded-full border border-violet-500/30 px-3 py-1 text-xs text-violet-300">
+                    1 task = 1 opportunity
+                  </span>
+                </div>
+
+                {prolly.taskInstructions && (
+                  <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    <p className="text-xs uppercase tracking-widest text-zinc-600">
+                      Rules / Instructions
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-zinc-300">
+                      {prolly.taskInstructions}
+                    </p>
+                  </div>
+                )}
+
+                {prolly.taskPreference && (
+                  <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    <p className="text-xs uppercase tracking-widest text-zinc-600">
+                      Submission preference
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">
+                      {prolly.taskPreference}
+                    </p>
+                  </div>
+                )}
+
+                {prolly.taskReferenceImage && (
+                  <div className="mt-4">
+                    <p className="text-xs uppercase tracking-widest text-zinc-600">
+                      Reference
+                    </p>
+                    <a
+                      href={prolly.taskReferenceImage}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 block truncate text-sm text-violet-300 hover:text-violet-200"
+                    >
+                      {prolly.taskReferenceImage}
+                    </a>
+                  </div>
+                )}
+
+                <p className="mt-5 text-xs leading-5 text-zinc-600">
+                  Task qualification must be completed before a participant
+                  enters the authoritative random pool. This interface does
+                  not select winners.
+                </p>
+              </div>
+            )}
+
             <div className="mt-7">
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-500">Participation</span>
