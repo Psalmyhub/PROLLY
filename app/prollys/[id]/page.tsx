@@ -531,6 +531,27 @@ export default function ProllyDetailsPage() {
               </div>
             )}
 
+            {onChain.closed && (
+              <div className="mt-7 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
+                <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Selection state</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    <p className="text-xs text-zinc-500">Pool</p>
+                    <p className="mt-1 font-semibold">Frozen</p>
+                  </div>
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    <p className="text-xs text-zinc-500">GenLayer</p>
+                    <p className="mt-1 font-semibold">{onChain.winnersFinalized ? "Finalized" : "Awaiting authorization"}</p>
+                  </div>
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                    <p className="text-xs text-zinc-500">Battle</p>
+                    <p className="mt-1 font-semibold">{onChain.winnersFinalized && randomSeed ? "Ready" : "Not ready"}</p>
+                  </div>
+                </div>
+                <p className="mt-4 text-xs leading-5 text-zinc-600">The Battle only reveals the finalized on-chain winner set. It never creates, changes, or re-runs winner selection.</p>
+              </div>
+            )}
+
             <div className="mt-7">
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-500">Participation</span>
