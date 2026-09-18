@@ -15,8 +15,7 @@ import { loadProfile, saveProfile, type UserProfile } from "@/lib/profile-store"
 import { getRole, type UserRole } from "@/lib/role-store";
 import { PROLLY_CONTRACT_OWNER } from "@/lib/genlayer";
 import { normalizeAddress } from "@/lib/wallet-identity";
-
-const FAVORITES_KEY = "prolly-favorites";
+import { loadFavoriteProllyIds } from "@/lib/favorite-store";
 
 type ParticipationStatus = "won" | "lost" | "pending";
 
@@ -106,14 +105,7 @@ export default function ProfilePage() {
     setUsername(loadedProfile?.username ?? "");
     setRole(getRole(address, PROLLY_CONTRACT_OWNER));
 
-    try {
-      const savedFavorites = localStorage.getItem(FAVORITES_KEY);
-      setFavoriteIds(
-        savedFavorites ? (JSON.parse(savedFavorites) as string[]) : [],
-      );
-    } catch {
-      setFavoriteIds([]);
-    }
+    setFavoriteIds(loadFavoriteProllyIds(address));
   }, [address]);
 
   useEffect(() => {
