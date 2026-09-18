@@ -16,6 +16,7 @@ import { getRole, type UserRole } from "@/lib/role-store";
 import { PROLLY_CONTRACT_OWNER } from "@/lib/genlayer";
 import { normalizeAddress } from "@/lib/wallet-identity";
 import { loadFavoriteProllyIds } from "@/lib/favorite-store";
+import { calculateProllyEconomics, formatBpsAsPercent } from "@/lib/economics";
 
 type ParticipationStatus = "won" | "lost" | "pending";
 
@@ -253,6 +254,11 @@ export default function ProfilePage() {
   );
   const winRate = joinedCount > 0 ? Math.round((wins / joinedCount) * 100) : 0;
   const winLossRatio = losses > 0 ? (wins / losses).toFixed(2) : wins > 0 ? "∞" : "—";
+  const totalEntrySpent = participations.reduce((sum, item) => sum + item.chain.entryFee, 0n);
+  const totalMaximumPools = participations.reduce((sum, item) => sum + calculateProllyEconomics(item.chain.entryFee, item.chain.participantCount, item.chain.maxParticipants, item.chain.winnerCount).maxPool, 0n);
+  const averageEntryProbability = participations.length > 0
+    ? participations.reduce((sum, item) => sum + calculateProllyEconomics(item.chain.entryFee, item.chain.participantCount, item.chain.maxParticipants, item.chain.winnerCount).maxWinProbabilityBps, 0n) / BigInt(participations.length)
+    : 0n;
 
   const displayWallet = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -396,6 +402,26 @@ export default function ProfilePage() {
                   <p className="mt-2 text-3xl font-bold">{value}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-8 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+              <p className="text-sm font-semibold uppercase tracking-widest text-cyan-300">Economics history</p>
+              <p className="mt-2 text-sm text-zinc-500">Participation economics are calculated from the on-chain entry fees and participant records. This is not an earnings or payout ledger.</p>
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-xs text-zinc-500">Entry paid</p>
+                  <p className="mt-2 text-xl font-bold">{formatGen(totalEntrySpent)} GEN</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-xs text-zinc-500">Max pools represented</p>
+                  <p className="mt-2 text-xl font-bold">{formatGen(totalMaximumPools)} GEN</p>
+                </div>
+                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <p className="text-xs text-zinc-500">Avg. full-capacity chance</p>
+                  <p className="mt-2 text-xl font-bold">{formatBpsAsPercent(averageEntryProbability)}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs leading-5 text-zinc-600">The current deployed contract does not expose a prize payout, withdrawal, or earnings mechanism, so Prolly does not display unverified earnings.</p>
             </div>
 
             <div className="mt-8 grid gap-6 md:grid-cols-2">
