@@ -731,15 +731,6 @@ export default function AdminPage() {
         </div>
 
         <div className="mt-12 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
-          <div className="border-b border-zinc-800 px-6 py-5">
-            <h2 className="text-xl font-bold">Task Qualification Review</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              Review Task Prolly submissions. Qualification only controls eligibility; it never selects winners.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-12 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40">
           <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-5">
             <div>
               <h2 className="text-xl font-bold">
