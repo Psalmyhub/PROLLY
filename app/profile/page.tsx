@@ -365,6 +365,16 @@ export default function ProfilePage() {
                     3–20 characters. Letters, numbers, and underscores only.
                   </p>
 
+                  <label className="mt-6 block text-sm font-medium text-zinc-300">Bio</label>
+                  <textarea value={bio} onChange={(event) => setBio(event.target.value)} rows={3} placeholder="About me / community information" className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500" />
+
+                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div><label className="text-sm font-medium text-zinc-300">Website</label><input value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="https://..." className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500" /></div>
+                    <div><label className="text-sm font-medium text-zinc-300">Telegram</label><input value={telegram} onChange={(event) => setTelegram(event.target.value)} placeholder="@username or URL" className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500" /></div>
+                    <div><label className="text-sm font-medium text-zinc-300">Discord</label><input value={discord} onChange={(event) => setDiscord(event.target.value)} placeholder="Community or profile URL" className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500" /></div>
+                    <div><label className="text-sm font-medium text-zinc-300">X / Twitter</label><input value={twitter} onChange={(event) => setTwitter(event.target.value)} placeholder="@username or URL" className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500" /></div>
+                  </div>
+
                   <button
                     onClick={handleSave}
                     className="mt-6 rounded-full bg-violet-500 px-6 py-3 font-semibold hover:bg-violet-400"
