@@ -203,7 +203,7 @@ export default function ProllysPage() {
       if (statusFilter !== "all" && statusFilter !== "favorites" && getStatus(chain, prolly) !== statusFilter) return false;
       return true;
     });
-  }, [prollys, onChainProllys, search, creatorFilter, typeFilter, favoritesOnly, favorites, statusFilter]);
+  }, [prollys, onChainProllys, search, creatorFilter, favorites, statusFilter]);
 
   if (!mounted) {
     return <main className="min-h-screen bg-zinc-950 text-white"><div className="flex min-h-screen items-center justify-center"><p className="text-zinc-400">Loading...</p></div></main>;
