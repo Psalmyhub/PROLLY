@@ -83,6 +83,11 @@ export default function ProfilePage() {
   const { address, isConnected } = useAccount();
 
   const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [website, setWebsite] = useState("");
+  const [telegram, setTelegram] = useState("");
+  const [discord, setDiscord] = useState("");
+  const [twitter, setTwitter] = useState("");
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState<UserRole>("user");
   const [participations, setParticipations] = useState<Participation[]>([]);
@@ -104,6 +109,11 @@ export default function ProfilePage() {
     const loadedProfile = loadProfile(address);
     setProfile(loadedProfile);
     setUsername(loadedProfile?.username ?? "");
+    setBio(loadedProfile?.bio ?? "");
+    setWebsite(loadedProfile?.website ?? "");
+    setTelegram(loadedProfile?.telegram ?? "");
+    setDiscord(loadedProfile?.discord ?? "");
+    setTwitter(loadedProfile?.twitter ?? "");
     setRole(getRole(address, PROLLY_CONTRACT_OWNER));
 
     setFavoriteIds(loadFavoriteProllyIds(address));
@@ -229,6 +239,11 @@ export default function ProfilePage() {
 
     const updatedProfile: UserProfile = {
       username: cleanUsername,
+      bio: bio.trim(),
+      website: website.trim(),
+      telegram: telegram.trim(),
+      discord: discord.trim(),
+      twitter: twitter.trim(),
       createdAt: profile?.createdAt ?? now,
       updatedAt: now,
     };
