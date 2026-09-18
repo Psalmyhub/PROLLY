@@ -316,7 +316,7 @@ export default function ProllysPage() {
                           href={`/prollys/${prolly.onChainId}`}
                           className="flex-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-center font-semibold text-amber-300 hover:bg-amber-500/20"
                         >
-                          Authorize GenLayer
+                          Finalize / Authorize GenLayer
                         </Link>
                       ) : isClosed && isJoined && isFinalized && !canReveal ? (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Waiting for random selection</button>
