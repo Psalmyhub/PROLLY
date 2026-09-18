@@ -281,6 +281,13 @@ export default function ProllyDetailsPage() {
       return;
     }
 
+    if (prolly?.sponsorCategory === "task") {
+      if (!taskSubmission || taskSubmission.status !== "qualified") {
+        alert("Complete and qualify the Task submission before joining this Prolly.");
+        return;
+      }
+    }
+
     try {
       setJoining(true);
 
