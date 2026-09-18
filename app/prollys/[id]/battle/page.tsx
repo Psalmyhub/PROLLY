@@ -182,6 +182,7 @@ export default function ProllyBattlePage() {
     };
   }, [address, id]);
 
+  // This list is the authoritative GenLayer result rendered by the Battle.
   const winners = useMemo(
     () =>
       winnerAddresses.map((walletAddress, index) => ({
@@ -194,6 +195,8 @@ export default function ProllyBattlePage() {
 
   const canWatch = joined || replay;
 
+  // Winner addresses come only from getWinners() after on-chain finalization.
+  // Battle events are presentation-only and must never create or mutate winners.
   const battleEvents = useMemo(
     () => buildBattleEvents(prolly?.participantList ?? [], winnerAddresses),
     [prolly, winnerAddresses],
