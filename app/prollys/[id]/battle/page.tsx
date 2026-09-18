@@ -106,7 +106,6 @@ export default function ProllyBattlePage() {
   const canWatch=joined||replay;
   const story=useMemo(()=>buildStory(participants,winnerAddresses,onChain?.randomSeed??"",local),[participants,winnerAddresses,onChain?.randomSeed,local]);
   const visible=story.slice(0,eventIndex);
-  const revealedWinners=visible.filter(e=>e.winner);
   const finalSurvivors=winnerAddresses.map(wallet=>usernameFor(wallet,participants,local));
 
   useEffect(()=>{
