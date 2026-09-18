@@ -17,7 +17,6 @@ export type SponsorApplication = {
   createdAt: number;
 };
 
-const ROLE_KEY = "prolly-roles";
 const APPLICATION_KEY = "prolly-sponsor-applications";
 
 const normalize = normalizeAddress;
