@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useAccount } from "wagmi";
+import {
+  loadSponsorCampaigns,
+  saveSponsorCampaigns,
+  type SponsorCampaign,
+} from "@/lib/sponsor-store";
 import { useEffect, useState } from "react";
 import { getRole } from "@/lib/role-store";
 import { PROLLY_CONTRACT_OWNER } from "@/lib/genlayer";
@@ -11,6 +16,7 @@ type CampaignType = "manual" | "task" | "generated-link";
 
 type Campaign = {
   id: string;
+  ownerWallet: string;
   title: string;
   type: CampaignType;
   description: string;
@@ -23,17 +29,6 @@ type Campaign = {
   winnerCount?: string;
 };
 
-const STORAGE_KEY = "prolly-sponsor-campaigns";
-
-function loadCampaigns(): Campaign[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? (JSON.parse(saved) as Campaign[]) : [];
-  } catch {
-    return [];
-  }
-}
 
 export default function SponsorDashboard() {
   const { address } = useAccount();
@@ -59,8 +54,12 @@ export default function SponsorDashboard() {
     })();
 
   useEffect(() => {
-    setCampaigns(loadCampaigns());
-  }, []);
+    if (!address) {
+      setCampaigns([]);
+      return;
+    }
+    setCampaigns(loadSponsorCampaigns(address) as Campaign[]);
+  }, [address]);
 
   function createCampaign() {
     if (!title.trim() || !description.trim()) {
@@ -77,8 +76,14 @@ export default function SponsorDashboard() {
       return;
     }
 
+    if (!address) {
+      setMessage("Connect your sponsor wallet first.");
+      return;
+    }
+
     const campaign: Campaign = {
       id: `sponsor-${Date.now()}`,
+      ownerWallet: address,
       title: title.trim(),
       type,
       description: description.trim(),
@@ -92,7 +97,7 @@ export default function SponsorDashboard() {
     };
 
     const next = [campaign, ...campaigns];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    saveSponsorCampaigns(address, next as SponsorCampaign[]);
     setCampaigns(next);
     setTitle("");
     setDescription("");
