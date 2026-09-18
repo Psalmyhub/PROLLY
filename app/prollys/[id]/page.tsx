@@ -24,12 +24,6 @@ import {
 import { loadProfile } from "@/lib/profile-store";
 import { calculateProllyEconomics, formatBpsAsPercent, formatGenAmount } from "@/lib/economics";
 
-import {
-  loadTaskSubmission,
-  saveTaskSubmission,
-  type TaskSubmission,
-} from "@/lib/task-store";
-
 function formatGen(value: bigint): string {
   const whole = value / BigInt("1000000000000000000");
   const fraction = value % BigInt("1000000000000000000");
@@ -123,10 +117,6 @@ export default function ProllyDetailsPage() {
   const [randomSeed, setRandomSeed] = useState<string>("");
   const [winnerAddresses, setWinnerAddresses] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [taskResponse, setTaskResponse] = useState("");
-  const [taskReference, setTaskReference] = useState("");
-  const [taskSubmission, setTaskSubmission] = useState<TaskSubmission | null>(null);
-  const [submittingTask, setSubmittingTask] = useState(false);
 
   const economics = onChain ? calculateProllyEconomics(onChain.entryFee, onChain.participantCount, onChain.maxParticipants, onChain.winnerCount) : null;
 
@@ -197,9 +187,6 @@ export default function ProllyDetailsPage() {
   }
 
   useEffect(() => {
-    if (address && prolly?.sponsorCategory === "task") {
-      setTaskSubmission(loadTaskSubmission(id, address));
-    }
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, address, id]);
@@ -279,13 +266,6 @@ export default function ProllyDetailsPage() {
     if (joined) {
       alert("This wallet has already joined this Prolly.");
       return;
-    }
-
-    if (prolly?.sponsorCategory === "task") {
-      if (!taskSubmission || taskSubmission.status !== "qualified") {
-        alert("Complete and qualify the Task submission before joining this Prolly.");
-        return;
-      }
     }
 
     try {
@@ -452,91 +432,6 @@ export default function ProllyDetailsPage() {
               {prolly.description ||
                 "Join this Prolly for a chance to become one of the randomly selected winners."}
             </p>
-
-            {prolly.sponsorCategory === "task" && (
-              <div className="mt-7 rounded-3xl border border-violet-500/20 bg-violet-500/5 p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
-                      Sponsor Task
-                    </p>
-                    <h2 className="mt-2 text-xl font-bold">
-                      Complete the task to qualify
-                    </h2>
-                  </div>
-                  <span className="rounded-full border border-violet-500/30 px-3 py-1 text-xs text-violet-300">
-                    1 task = 1 opportunity
-                  </span>
-                </div>
-
-                {prolly.taskInstructions && (
-                  <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs uppercase tracking-widest text-zinc-600">
-                      Rules / Instructions
-                    </p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-zinc-300">
-                      {prolly.taskInstructions}
-                    </p>
-                  </div>
-                )}
-
-                {prolly.taskPreference && (
-                  <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs uppercase tracking-widest text-zinc-600">
-                      Submission preference
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">
-                      {prolly.taskPreference}
-                    </p>
-                  </div>
-                )}
-
-                {prolly.taskReferenceImage && (
-                  <div className="mt-4">
-                    <p className="text-xs uppercase tracking-widest text-zinc-600">
-                      Reference
-                    </p>
-                    <a
-                      href={prolly.taskReferenceImage}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 block truncate text-sm text-violet-300 hover:text-violet-200"
-                    >
-                      {prolly.taskReferenceImage}
-                    </a>
-                  </div>
-                )}
-
-                <p className="mt-5 text-xs leading-5 text-zinc-600">
-                  Task qualification must be completed before a participant
-                  enters the authoritative random pool. This interface does
-                  not select winners.
-                </p>
-              </div>
-            )}
-
-            {prolly.sponsorCategory === "task" && !joined && (
-              <div className="mt-6 rounded-3xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-                <p className="text-xs font-semibold uppercase tracking-widest text-cyan-300">Task submission</p>
-                <h2 className="mt-2 text-xl font-bold">Submit your task response</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">Your submission is collected for qualification. It does not select a winner. The authoritative random pool remains controlled by the GenLayer contract.</p>
-                {taskSubmission ? (
-                  <div className={`mt-5 rounded-2xl border p-4 ${taskSubmission.status === "qualified" ? "border-green-500/20 bg-green-500/5" : taskSubmission.status === "rejected" ? "border-red-500/20 bg-red-500/5" : "border-amber-500/20 bg-amber-500/5"}`}>
-                    <p className={`font-semibold ${taskSubmission.status === "qualified" ? "text-green-300" : taskSubmission.status === "rejected" ? "text-red-300" : "text-amber-300"}`}>
-                      {taskSubmission.status === "qualified" ? "Qualified — eligible for the random pool" : taskSubmission.status === "rejected" ? "Rejected — this submission is not eligible" : "Submission received — awaiting qualification"}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-500">Submitted {new Date(taskSubmission.submittedAt).toLocaleString()}</p>
-                    <p className="mt-2 text-xs text-zinc-600">Qualification controls eligibility only. It does not select the winner.</p>
-                  </div>
-                ) : (
-                  <>
-                    <textarea value={taskResponse} onChange={(e) => setTaskResponse(e.target.value)} rows={5} placeholder="Enter your task response or submission..." className="mt-5 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-cyan-400" />
-                    <input value={taskReference} onChange={(e) => setTaskReference(e.target.value)} placeholder="Optional proof/reference link" className="mt-3 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none focus:border-cyan-400" />
-                    <button onClick={() => { if (!address) { setError("Connect your wallet before submitting."); return; } if (!taskResponse.trim()) { setError("Enter a task response first."); return; } setSubmittingTask(true); try { const submission: TaskSubmission = { prollyId: id, wallet: address, response: taskResponse.trim(), reference: taskReference.trim(), submittedAt: Date.now(), status: "pending" }; saveTaskSubmission(submission); setTaskSubmission(submission); setTaskResponse(""); setTaskReference(""); } finally { setSubmittingTask(false); } }} disabled={!address || submittingTask} className="mt-4 w-full rounded-full bg-cyan-400 py-3 font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500">{submittingTask ? "Submitting..." : "Submit for Qualification"}</button>
-                  </>
-                )}
-              </div>
-            )}
 
             {onChain.closed && (
               <div className="mt-7 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
