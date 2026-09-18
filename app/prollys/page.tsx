@@ -158,9 +158,6 @@ export default function ProllysPage() {
     }
 
     if (joinedStates[prolly.onChainId ?? ""]) return alert("This wallet has already joined this Prolly.");
-    if (prolly.sponsorCategory === "task" && taskSubmissions[prolly.onChainId ?? ""]?.status !== "qualified") {
-      return alert("Complete and qualify the Task submission before joining this Task Prolly.");
-    }
     setSelectedProlly(prolly);
   }
 
@@ -287,7 +284,7 @@ export default function ProllysPage() {
 
                     <div className="mt-6 flex gap-3">
                       {!isClosed && !isJoined ? (
-                        <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting || (prolly.sponsorCategory === "task" && !taskReady)} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{prolly.sponsorCategory === "task" && !taskReady ? "Qualify Task First" : joining ? "Joining..." : "Join Prolly"}</button>
+                        <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{joining ? "Joining..." : "Join Prolly"}</button>
                       ) : !isClosed && isJoined ? (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-green-500/30 bg-green-500/10 px-5 py-3 font-semibold text-green-300">Joined</button>
                       ) : isClosed && isJoined && !isFinalized ? (
