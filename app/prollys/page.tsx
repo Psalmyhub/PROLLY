@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useConnect } from "wagmi";
 import { loadFavoriteProllyIds, toggleFavoriteProlly } from "@/lib/favorite-store";
-import { loadTaskSubmissions, type TaskSubmission } from "@/lib/task-store";
 
 import { loadProllys, saveProllys, type Prolly } from "@/lib/prolly-store";
 import {
@@ -14,9 +13,8 @@ import {
   type OnChainProlly,
 } from "@/lib/genlayer";
 
-type StatusFilter = "all" | "active" | "closing-soon" | "closed";
+type StatusFilter = "all" | "active" | "closing-soon" | "closed" | "favorites";
 type CreatorFilter = "all" | "admin" | "sponsor";
-type TypeFilter = "all" | "manual" | "task" | "generated-link";
 
 function formatGen(value: bigint): string {
   const whole = value / BigInt("1000000000000000000");
@@ -57,11 +55,9 @@ function getLocalMetadata(onChain: OnChainProlly, localProllys: Prolly[]): Proll
   };
 }
 
-function getPostType(prolly: Prolly): TypeFilter {
-  if (prolly.creatorRole !== "sponsor") return "all";
-  if (prolly.sponsorCategory === "task") return "task";
-  if (prolly.sponsorCategory === "manual") return "manual";
-  return "generated-link";
+function getPostType(prolly: Prolly): "manual" | "link" | "admin" {
+  if (prolly.creatorRole === "admin") return "admin";
+  return prolly.sponsorCategory === "manual" ? "manual" : "link";
 }
 
 function getStatus(chain: OnChainProlly, prolly: Prolly): StatusFilter {
@@ -85,10 +81,7 @@ export default function ProllysPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [creatorFilter, setCreatorFilter] = useState<CreatorFilter>("all");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [taskSubmissions, setTaskSubmissions] = useState<Record<string, TaskSubmission>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -96,13 +89,6 @@ export default function ProllysPage() {
 
   useEffect(() => {
     setFavorites(address ? loadFavoriteProllyIds(address) : []);
-  }, [address]);
-
-  useEffect(() => {
-    const wallet = address?.toLowerCase();
-    if (!wallet) { setTaskSubmissions({}); return; }
-    const items = loadTaskSubmissions().filter((item) => item.wallet.toLowerCase() === wallet);
-    setTaskSubmissions(Object.fromEntries(items.map((item) => [item.prollyId, item])));
   }, [address]);
 
   function toggleFavorite(id: string) {
@@ -217,12 +203,11 @@ export default function ProllysPage() {
       const searchable = [prolly.title, prolly.description, prolly.creatorUsername, prolly.sponsorCategory ?? ""].join(" ").toLowerCase();
       if (query && !searchable.includes(query)) return false;
       if (creatorFilter !== "all" && prolly.creatorRole !== creatorFilter) return false;
-      if (typeFilter !== "all" && getPostType(prolly) !== typeFilter) return false;
-      if (favoritesOnly && !favorites.includes(prolly.onChainId ?? prolly.id)) return false;
-      if (statusFilter !== "all" && getStatus(chain, prolly) !== statusFilter) return false;
+      if (statusFilter === "favorites" && !favorites.includes(prolly.onChainId ?? prolly.id)) return false;
+      if (statusFilter !== "all" && statusFilter !== "favorites" && getStatus(chain, prolly) !== statusFilter) return false;
       return true;
     });
-  }, [prollys, onChainProllys, search, creatorFilter, typeFilter, favoritesOnly, favorites, statusFilter, taskSubmissions]);
+  }, [prollys, onChainProllys, search, creatorFilter, typeFilter, favoritesOnly, favorites, statusFilter]);
 
   if (!mounted) {
     return <main className="min-h-screen bg-zinc-950 text-white"><div className="flex min-h-screen items-center justify-center"><p className="text-zinc-400">Loading...</p></div></main>;
@@ -248,12 +233,11 @@ export default function ProllysPage() {
         </div>
 
         <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+          <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr]">
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, creator, sponsor, description..." className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none placeholder:text-zinc-600 focus:border-violet-500" />
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Statuses</option><option value="active">Active</option><option value="closing-soon">Closing Soon</option><option value="closed">Closed</option></select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Statuses</option><option value="active">Live</option><option value="closing-soon">Starting Soon</option><option value="closed">Closed</option><option value="favorites">Favorites</option></select>
             <select value={creatorFilter} onChange={(event) => setCreatorFilter(event.target.value as CreatorFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Creators</option><option value="admin">Admin</option><option value="sponsor">Sponsor</option></select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TypeFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Types</option><option value="manual">Manual</option><option value="task">Task</option><option value="generated-link">Preview Link</option></select>
-            <button onClick={() => setFavoritesOnly((current) => !current)} className={`rounded-xl border px-4 py-3 text-sm font-medium ${favoritesOnly ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-zinc-700 hover:bg-zinc-800"}`}>{favoritesOnly ? "♥ Favorites" : "♡ Favorites"}</button>
+
           </div>
         </div>
 
@@ -270,24 +254,21 @@ export default function ProllysPage() {
               if (!chain) return null;
               const participantCount = Number(chain.participantCount);
               const maxParticipants = Number(chain.maxParticipants);
-              const isFull = participantCount >= maxParticipants;
-              const isClosed = chain.closed;
+                const isClosed = chain.closed;
               const isJoined = !!prolly.onChainId && !!joinedStates[prolly.onChainId];
               const isFinalized = chain.winnersFinalized;
               const canReveal = isFinalized && !!chain.randomSeed;
-              const taskSubmission = prolly.onChainId ? taskSubmissions[prolly.onChainId] : undefined;
               const isFavorite = favorites.includes(prolly.onChainId ?? prolly.id);
               const progress = maxParticipants > 0 ? Math.min((participantCount / maxParticipants) * 100, 100) : 0;
               const status = getStatus(chain, prolly);
               const postType = prolly.creatorRole === "sponsor" ? getPostType(prolly) : "all";
-              const taskReady = prolly.sponsorCategory !== "task" || taskSubmission?.status === "qualified";
 
               return (
                 <article key={chain.id.toString()} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/50">
                   <div className="p-6">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-400">{prolly.creatorRole}</span>{postType !== "all" && <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">{postType === "generated-link" ? "Preview Link" : postType}</span>}</div>
+                        <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase text-violet-400">{prolly.creatorRole}</span>{prolly.creatorRole === "sponsor" && <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-medium text-zinc-300">{getPostType(prolly) === "manual" ? "Manual Prolly" : "Link Prolly"}</span>}</div>
                         <h2 className="mt-3 text-2xl font-bold">{prolly.title || chain.name || "Untitled Prolly"}</h2>
                       </div>
                       <button onClick={() => toggleFavorite(prolly.onChainId ?? prolly.id)} aria-label={isFavorite ? "Remove favorite" : "Add favorite"} className="text-2xl leading-none text-zinc-400 hover:text-white">{isFavorite ? "♥" : "♡"}</button>
@@ -296,12 +277,10 @@ export default function ProllysPage() {
                     <p className="mt-3 min-h-14 text-sm leading-6 text-zinc-400">{prolly.description || "No description provided."}</p>
                     <div className="mt-6 flex h-40 items-center justify-center rounded-2xl bg-zinc-800"><span className="text-sm text-zinc-600">Prolly image</span></div>
 
-                    <div className="mt-6 flex items-center justify-between text-sm"><div><p className="text-zinc-500">Creator</p><p className="mt-1 font-medium">@{prolly.creatorUsername || "admin"}</p></div><div className="text-right"><p className="text-zinc-500">Status</p><p className="mt-1 font-medium capitalize">{status.replace("-", " ")}{taskSubmission ? " · " + taskSubmission.status : ""}</p></div></div>
+                    <div className="mt-6 flex items-center justify-between text-sm"><div><p className="text-zinc-500">Creator</p><p className="mt-1 font-medium">@{prolly.creatorUsername || "admin"}</p></div><div className="text-right"><p className="text-zinc-500">Status</p><p className="mt-1 font-medium capitalize">{status.replace("-", " ")}</p></div></div>
 
                     <div className="mt-5 space-y-3 text-sm">
-                      <div className="flex justify-between"><span className="text-zinc-500">Entry</span><span className="font-medium">{formatGen(chain.entryFee)} GEN</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">Participants</span><span className="font-medium">{participantCount} / {maxParticipants}</span></div>
-                      <div className="flex justify-between"><span className="text-zinc-500">Winners</span><span className="font-medium">{chain.winnerCount.toString()}</span></div>
+                      {prolly.creatorRole === "sponsor" ? <><div className="flex justify-between"><span className="text-zinc-500">Maximum Participants</span><span className="font-medium">{maxParticipants}</span></div><div className="flex justify-between"><span className="text-zinc-500">Winners</span><span className="font-medium">{chain.winnerCount.toString()}</span></div><div className="flex justify-between"><span className="text-zinc-500">{getPostType(prolly) === "manual" ? "Participants" : "Participants Joined"}</span><span className="font-medium">{participantCount} / {maxParticipants}</span></div></> : <><div className="flex justify-between"><span className="text-zinc-500">Entry</span><span className="font-medium">{formatGen(chain.entryFee)} GEN</span></div><div className="flex justify-between"><span className="text-zinc-500">Participants</span><span className="font-medium">{participantCount} / {maxParticipants}</span></div><div className="flex justify-between"><span className="text-zinc-500">Winners</span><span className="font-medium">{chain.winnerCount.toString()}</span></div></>}
                     </div>
 
                     <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} /></div>
