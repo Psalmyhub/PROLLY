@@ -273,6 +273,8 @@ export default function ProllysPage() {
               const isFull = participantCount >= maxParticipants;
               const isClosed = chain.closed;
               const isJoined = !!prolly.onChainId && !!joinedStates[prolly.onChainId];
+              const isFinalized = chain.winnersFinalized;
+              const canReveal = isFinalized && !!chain.randomSeed;
               const taskSubmission = prolly.onChainId ? taskSubmissions[prolly.onChainId] : undefined;
               const isFavorite = favorites.includes(prolly.onChainId ?? prolly.id);
               const progress = maxParticipants > 0 ? Math.min((participantCount / maxParticipants) * 100, 100) : 0;
@@ -309,16 +311,16 @@ export default function ProllysPage() {
                         <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting || (prolly.sponsorCategory === "task" && !taskReady)} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{prolly.sponsorCategory === "task" && !taskReady ? "Qualify Task First" : joining ? "Joining..." : "Join Prolly"}</button>
                       ) : !isClosed && isJoined ? (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-green-500/30 bg-green-500/10 px-5 py-3 font-semibold text-green-300">Joined</button>
-                      ) : isClosed && isJoined && !chain.winnersFinalized ? (
+                      ) : isClosed && isJoined && !isFinalized ? (
                         <Link
                           href={`/prollys/${prolly.onChainId}`}
                           className="flex-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-center font-semibold text-amber-300 hover:bg-amber-500/20"
                         >
                           Authorize GenLayer
                         </Link>
-                      ) : isClosed && isJoined && chain.winnersFinalized && !chain.randomSeed ? (
+                      ) : isClosed && isJoined && isFinalized && !canReveal ? (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Waiting for random selection</button>
-                      ) : isClosed && isJoined && chain.winnersFinalized && chain.randomSeed ? (
+                      ) : isClosed && isJoined && canReveal ? (
                         <Link href={`/prollys/${prolly.onChainId}`} className="flex-1 rounded-full bg-violet-500 px-5 py-3 text-center font-semibold hover:bg-violet-400">View Winner / Battle</Link>
                       ) : (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-zinc-700 px-5 py-3 font-semibold text-zinc-500">Prolly Closed</button>
