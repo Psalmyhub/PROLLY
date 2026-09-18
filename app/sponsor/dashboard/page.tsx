@@ -17,6 +17,9 @@ type Campaign = {
   reference: string;
   createdAt: number;
   accessCode?: string;
+  entryFee?: string;
+  maxParticipants?: string;
+  winnerCount?: string;
 };
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
@@ -40,6 +43,9 @@ export default function SponsorDashboard() {
   const [instructions, setInstructions] = useState("");
   const [reference, setReference] = useState("");
   const [message, setMessage] = useState("");
+  const [entryFee, setEntryFee] = useState("1");
+  const [maxParticipants, setMaxParticipants] = useState("100");
+  const [winnerCount, setWinnerCount] = useState("10");
 
   function makeAccessCode() {
     return Math.random().toString(36).slice(2, 10).toUpperCase();
@@ -58,6 +64,15 @@ export default function SponsorDashboard() {
       return;
     }
 
+    const fee = Number(entryFee);
+    const max = Number(maxParticipants);
+    const winners = Number(winnerCount);
+
+    if (!Number.isFinite(fee) || fee <= 0 || !Number.isInteger(max) || max <= 0 || !Number.isInteger(winners) || winners <= 0 || winners > max) {
+      setMessage("Enter valid economics: fee > 0, positive participant count, and winners cannot exceed participants.");
+      return;
+    }
+
     const campaign: Campaign = {
       id: `sponsor-${Date.now()}`,
       title: title.trim(),
@@ -67,6 +82,9 @@ export default function SponsorDashboard() {
       reference: reference.trim(),
       createdAt: Date.now(),
       accessCode: type === "generated-link" ? makeAccessCode() : undefined,
+      entryFee: entryFee,
+      maxParticipants: maxParticipants,
+      winnerCount: winnerCount,
     };
 
     const next = [campaign, ...campaigns];
@@ -76,6 +94,9 @@ export default function SponsorDashboard() {
     setDescription("");
     setInstructions("");
     setReference("");
+    setEntryFee("1");
+    setMaxParticipants("100");
+    setWinnerCount("10");
     setMessage(
       "Campaign brief saved. On-chain Prolly creation remains owner-controlled by the current GenLayer contract.",
     );
@@ -201,6 +222,29 @@ export default function SponsorDashboard() {
               className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500"
             />
 
+            <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+              <p className="text-sm font-semibold text-cyan-300">Sponsor economics</p>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">Planning values only. They are saved with this campaign brief and are not sent to the deployed GenLayer contract.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="text-xs text-zinc-400">Entry fee (GEN)</label>
+                  <input type="number" min="0.000000000000000001" step="0.01" value={entryFee} onChange={(e) => setEntryFee(e.target.value)} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-cyan-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400">Max participants</label>
+                  <input type="number" min="1" step="1" value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-cyan-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400">Winners</label>
+                  <input type="number" min="1" step="1" value={winnerCount} onChange={(e) => setWinnerCount(e.target.value)} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-sm text-zinc-400">Maximum pool: <span className="font-semibold text-zinc-200">{(Number(entryFee) * Number(maxParticipants)).toLocaleString()} GEN</span></div>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3 text-sm text-zinc-400">Full-capacity chance: <span className="font-semibold text-zinc-200">{Number(maxParticipants) > 0 ? ((Number(winnerCount) / Number(maxParticipants)) * 100).toFixed(2) : "0.00"}%</span></div>
+              </div>
+            </div>
+
             <label className="mt-6 block text-sm font-medium text-zinc-300">
               Reference / example / link
             </label>
@@ -226,7 +270,7 @@ export default function SponsorDashboard() {
           <section className="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-7">
             <h2 className="text-2xl font-semibold">My campaigns</h2>
             <p className="mt-2 text-sm text-zinc-500">
-              Saved sponsor briefs for this browser.
+              Saved sponsor briefs for this browser. Economics shown here are planning values until an on-chain sponsor creation flow is introduced.
             </p>
 
             {campaigns.length === 0 ? (
@@ -258,6 +302,11 @@ export default function SponsorDashboard() {
                     <p className="mt-3 text-sm leading-6 text-zinc-400">
                       {campaign.description}
                     </p>
+                    <div className="mt-4 grid gap-2 text-xs text-zinc-500 sm:grid-cols-3">
+                      <span>Entry: <strong className="text-zinc-300">{campaign.entryFee ?? "—"} GEN</strong></span>
+                      <span>Max pool: <strong className="text-zinc-300">{campaign.entryFee && campaign.maxParticipants ? (Number(campaign.entryFee) * Number(campaign.maxParticipants)).toLocaleString() : "—"} GEN</strong></span>
+                      <span>Winners: <strong className="text-zinc-300">{campaign.winnerCount ?? "—"}</strong></span>
+                    </div>
                     {campaign.type === "generated-link" && campaign.accessCode && (
                       <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                         <p className="text-xs uppercase tracking-widest text-cyan-300">Generated access link</p>
