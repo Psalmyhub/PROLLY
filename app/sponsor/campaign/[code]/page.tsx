@@ -57,7 +57,7 @@ export default function CampaignAccessPage() {
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-6">
           <Link href="/" className="text-2xl font-bold tracking-tight">PROLLY<span className="text-violet-400">.</span></Link>
-          <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-300">Generated Link</span>
+          <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-300">Preview Link</span>
         </div>
       </nav>
       <section className="mx-auto max-w-3xl px-6 py-16">
@@ -98,9 +98,9 @@ export default function CampaignAccessPage() {
         )}
 
         <div className="mt-8 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6">
-          <p className="font-semibold text-amber-300">Prototype access page</p>
+          <p className="font-semibold text-amber-300">Browser-local preview</p>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
-            This generated link currently exposes the saved campaign brief only. It does not bypass wallet checks, create an on-chain participant, or select a winner. Final participation remains controlled by the deployed GenLayer contract.
+            This is a browser-local preview of a saved campaign brief. It does not create a public campaign, bypass wallet checks, record an on-chain participant, or select a winner. Final participation remains controlled by the deployed GenLayer contract.
           </p>
         </div>
         <Link href="/prollys" className="mt-8 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold hover:bg-violet-400">Explore Prollys</Link>
