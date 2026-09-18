@@ -140,7 +140,13 @@ export default function ProllyBattlePage() {
           );
         }
 
-        if (!chainData.randomSeed) {\n          throw new Error("GenLayer has finalized the Prolly, but the random selection result is not ready yet.");\n        }\n\n        const winners = await getWinners(numericId.toString());
+        if (!chainData.randomSeed) {
+          throw new Error(
+            "GenLayer has finalized the Prolly, but the random selection result is not ready yet.",
+          );
+        }
+
+        const winners = await getWinners(numericId.toString());
         const localMetadata = getLocalMetadata(chainData);
 
         let walletJoined = false;
@@ -193,7 +199,7 @@ export default function ProllyBattlePage() {
     [prolly, winnerAddresses],
   );
 
-  const visibleBattleEvents = battleEvents.slice(0, battleEventIndex);\n  const winnerEventsRevealed = visibleBattleEvents.filter((event) => event.winner).length;
+  const visibleBattleEvents = battleEvents.slice(0, battleEventIndex);
 
   useEffect(() => {
     if (!canWatch || (winners.length === 0 && battleEvents.length === 0)) return;
@@ -212,7 +218,7 @@ export default function ProllyBattlePage() {
     }, 1100);
 
     return () => window.clearInterval(timer);
-  }, [canWatch, battleEvents.length, winners.length, id, winnerEventsRevealed]);
+  }, [canWatch, battleEvents, winners.length, id]);
 
   if (loading) {
     return (
