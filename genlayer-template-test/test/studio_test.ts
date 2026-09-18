@@ -9,9 +9,13 @@ const client = createClient({
   endpoint: "https://studio.genlayer.com/api",
 });
 
+type ReadArgs = NonNullable<
+  Parameters<typeof client.readContract>[0]["args"]
+>;
+
 async function read(
   functionName: string,
-  args: unknown[] = [],
+  args: ReadArgs = [],
 ) {
   return client.readContract({
     address: CONTRACT,
