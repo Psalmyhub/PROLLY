@@ -45,7 +45,11 @@ export default function SponsorDashboard() {
   const [winnerCount, setWinnerCount] = useState("10");
 
   function makeAccessCode() {
-    return Math.random().toString(36).slice(2, 10).toUpperCase();
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+    }
+
+    return Date.now().toString(36).slice(-8).toUpperCase();
   }
 
   const approved =
@@ -183,7 +187,7 @@ export default function SponsorDashboard() {
               {([
                 ["manual", "Manual"],
                 ["task", "Task"],
-                ["generated-link", "Generated Link"],
+                ["generated-link", "Preview Link"],
               ] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -200,7 +204,7 @@ export default function SponsorDashboard() {
                       ? "Manual participant names"
                       : value === "task"
                         ? "One task per post"
-                        : "Link or access code"}
+                        : "Browser-local preview"}
                   </p>
                 </button>
               ))}
@@ -308,7 +312,7 @@ export default function SponsorDashboard() {
                       <div>
                         <p className="text-xs uppercase tracking-widest text-violet-400">
                           {campaign.type === "generated-link"
-                            ? "Generated Link"
+                            ? "Preview Link"
                             : campaign.type}
                         </p>
                         <h3 className="mt-2 text-lg font-semibold">
@@ -340,7 +344,7 @@ export default function SponsorDashboard() {
                           onClick={() => {
                             const link = window.location.origin + "/sponsor/campaign/" + campaign.accessCode;
                             void navigator.clipboard?.writeText(link);
-                            setMessage("Generated campaign link copied.");
+                            setMessage("Preview link copied.");
                           }}
                           className="mt-3 rounded-full border border-cyan-500/30 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
                         >
