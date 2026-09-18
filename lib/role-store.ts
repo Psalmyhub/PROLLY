@@ -2,21 +2,24 @@ import { normalizeAddress } from "@/lib/wallet-identity";
 
 export type UserRole = "user" | "sponsor_pending" | "sponsor" | "admin";
 
+export type SponsorApplicationStatus =
+  | "pending"
+  | "approved"
+  | "removed"
+  | "rejected";
+
 export type SponsorApplication = {
   walletAddress: string;
   name: string;
   description: string;
   website?: string;
-  status: "pending" | "approved" | "rejected";
+  status: SponsorApplicationStatus;
   createdAt: number;
 };
 
 const ROLE_KEY = "prolly-roles";
 const APPLICATION_KEY = "prolly-sponsor-applications";
 
-// P0-3: was a locally-duplicated normalize() identical in spirit to
-// access-control.ts's normalizeWallet() -- both now consolidated into
-// the single shared lib/wallet-identity.ts helper.
 const normalize = normalizeAddress;
 
 export function getRole(
@@ -52,7 +55,6 @@ export function loadSponsorApplications(): SponsorApplication[] {
   if (typeof window === "undefined") return [];
 
   const saved = localStorage.getItem(APPLICATION_KEY);
-
   if (!saved) return [];
 
   try {
@@ -62,33 +64,24 @@ export function loadSponsorApplications(): SponsorApplication[] {
   }
 }
 
-function saveSponsorApplications(
-  applications: SponsorApplication[],
-) {
-  localStorage.setItem(
-    APPLICATION_KEY,
-    JSON.stringify(applications),
-  );
+function saveSponsorApplications(applications: SponsorApplication[]) {
+  localStorage.setItem(APPLICATION_KEY, JSON.stringify(applications));
 }
 
 export function getSponsorApplication(
   walletAddress: string,
 ): SponsorApplication | undefined {
   return loadSponsorApplications().find(
-    (item) =>
-      normalize(item.walletAddress) === normalize(walletAddress),
+    (item) => normalize(item.walletAddress) === normalize(walletAddress),
   );
 }
 
-export function submitSponsorApplication(
-  application: SponsorApplication,
-) {
+export function submitSponsorApplication(application: SponsorApplication) {
   const applications = loadSponsorApplications();
 
   const existing = applications.findIndex(
     (item) =>
-      normalize(item.walletAddress) ===
-      normalize(application.walletAddress),
+      normalize(item.walletAddress) === normalize(application.walletAddress),
   );
 
   if (existing >= 0) {
@@ -102,18 +95,32 @@ export function submitSponsorApplication(
 
 export function updateSponsorApplicationStatus(
   walletAddress: string,
-  status: "approved" | "rejected",
+  status: "approved" | "removed" | "rejected",
 ) {
   const applications = loadSponsorApplications();
 
   const updated = applications.map((application) =>
     normalize(application.walletAddress) === normalize(walletAddress)
-      ? {
-          ...application,
-          status,
-        }
+      ? { ...application, status }
       : application,
   );
 
   saveSponsorApplications(updated);
+}
+
+export function getSponsorApplicationStatusLabel(
+  status: SponsorApplicationStatus,
+): string {
+  switch (status) {
+    case "approved":
+      return "Approved";
+    case "pending":
+      return "Pending";
+    case "removed":
+      return "Removed";
+    case "rejected":
+      return "Rejected";
+    default:
+      return status;
+  }
 }
