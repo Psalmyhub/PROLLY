@@ -103,11 +103,21 @@ class Prolly(gl.Contract):
         if self.closed.get(prolly_id, False):
             raise gl.vm.UserError("Prolly is closed")
 
+        # The wallet that submits the transaction is the authoritative
+        # participant identity. The caller-supplied participant argument
+        # is retained for ABI compatibility but may never impersonate
+        # another wallet.
+        sender = str(gl.message.sender_address)
+
         if participant.strip() == "":
+            raise gl.vm.UserError("Participant is required")
+
+        if participant.lower() != sender.lower():
             raise gl.vm.UserError(
-                "Participant is required"
+                "Participant must match the transaction sender"
             )
 
+        participant = sender
         participant_key = f"{prolly_id}:{participant}"
 
         if participant_key in self.participants:
