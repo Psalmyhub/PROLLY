@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
 import { getRole } from "@/lib/role-store";
 import { PROLLY_CONTRACT_OWNER } from "@/lib/genlayer";
+import WorkspaceSwitcher from "@/app/components/WorkspaceSwitcher";
 
 type CampaignType = "manual" | "task" | "generated-link";
 
@@ -52,7 +53,10 @@ export default function SponsorDashboard() {
   }
 
   const approved =
-    !!address && getRole(address, PROLLY_CONTRACT_OWNER) === "sponsor";
+    !!address && (() => {
+      const role = getRole(address, PROLLY_CONTRACT_OWNER);
+      return role === "sponsor" || role === "admin";
+    })();
 
   useEffect(() => {
     setCampaigns(loadCampaigns());
@@ -132,12 +136,15 @@ export default function SponsorDashboard() {
           <Link href="/" className="text-2xl font-bold tracking-tight">
             PROLLY<span className="text-violet-400">.</span>
           </Link>
-          <Link
-            href="/prollys"
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-800"
-          >
-            Explore
-          </Link>
+          <div className="flex items-center gap-3">
+            <WorkspaceSwitcher />
+            <Link
+              href="/prollys"
+              className="rounded-full border border-zinc-700 px-5 py-2 text-sm hover:bg-zinc-800"
+            >
+              Explore
+            </Link>
+          </div>
         </div>
       </nav>
 
