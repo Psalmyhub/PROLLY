@@ -13,7 +13,7 @@ import {
   type OnChainProlly,
 } from "@/lib/genlayer";
 
-type StatusFilter = "all" | "active" | "closing-soon" | "closed" | "favorites";
+type StatusFilter = "all" | "active" | "starting-soon" | "closed" | "finalized" | "favorites";
 type CreatorFilter = "all" | "admin" | "sponsor";
 
 function formatGen(value: bigint): string {
@@ -61,10 +61,9 @@ function getPostType(prolly: Prolly): "manual" | "link" | "admin" {
 }
 
 function getStatus(chain: OnChainProlly, prolly: Prolly): StatusFilter {
+  if (chain.winnersFinalized) return "finalized";
   if (chain.closed || chain.participantCount >= chain.maxParticipants) return "closed";
-  if (prolly.closesAt && prolly.closesAt > Date.now() && prolly.closesAt - Date.now() <= 24 * 60 * 60 * 1000) {
-    return "closing-soon";
-  }
+  if (prolly.sponsorStartAt && prolly.sponsorStartAt > Date.now() && prolly.sponsorStartAt - Date.now() <= 24 * 60 * 60 * 1000) return "starting-soon";
   return "active";
 }
 
@@ -232,7 +231,7 @@ export default function ProllysPage() {
         <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-5">
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr]">
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, creator, sponsor, description..." className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm outline-none placeholder:text-zinc-600 focus:border-violet-500" />
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Statuses</option><option value="active">Live</option><option value="closing-soon">Starting Soon</option><option value="closed">Closed</option><option value="favorites">Favorites</option></select>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Statuses</option><option value="active">Live</option><option value="starting-soon">Starting Soon</option><option value="closed">Closed</option><option value="finalized">Finalized</option><option value="favorites">Favorites</option></select>
             <select value={creatorFilter} onChange={(event) => setCreatorFilter(event.target.value as CreatorFilter)} className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm"><option value="all">All Creators</option><option value="admin">Admin</option><option value="sponsor">Sponsor</option></select>
 
           </div>
