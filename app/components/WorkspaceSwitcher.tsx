@@ -23,6 +23,12 @@ export default function WorkspaceSwitcher() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <Link
+        href="/profile"
+        className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-800"
+      >
+        Profile
+      </Link>
       <span className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-300">
         Role: {role === "sponsor_pending" ? "Sponsor pending" : role}
       </span>
