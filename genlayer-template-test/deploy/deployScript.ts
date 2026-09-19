@@ -19,7 +19,7 @@ export default async function main(
   try {
     console.log("");
     console.log("======================================");
-    console.log("DEPLOYING PROLLY V2");
+    console.log("DEPLOYING PROLLY");
     console.log("======================================");
     console.log("Contract file:", filePath);
 
@@ -71,7 +71,7 @@ export default async function main(
       "======================================",
     );
     console.log(
-      "PROLLY V2 DEPLOYED SUCCESSFULLY",
+      "PROLLY DEPLOYED SUCCESSFULLY",
     );
     console.log(
       "======================================",
@@ -87,7 +87,7 @@ export default async function main(
     console.log("");
   } catch (error) {
     throw new Error(
-      `Error during Prolly V2 deployment: ${String(
+      `Error during Prolly deployment: ${String(
         error,
       )}`,
     );

@@ -132,14 +132,14 @@ STATUS: 🟡 IN PROGRESS
 PRIORITY: 🔴 P0/P1
 SCOPE: GenLayer boundary, Explore → Detail → Battle, Task gating, sponsor workspace, profile
 RESULT SO FAR:
-- Canonical frontend contract address confirmed as `0xFAFA753b809B1293E2660086215634FA15Cd8E15`.
+- Canonical frontend contract address confirmed as `0x379a8448b39926AB82DFe428F02A44cD9A2544c6`.
 - Frontend uses the GenLayer read proxy and direct wallet writes.
 - Explore and Prolly detail use on-chain participant/closed/finalized state.
 - Task join gating is enforced in both Explore and Prolly detail.
 - Battle reads finalized winners from GenLayer and does not generate winners.
 - Battle reveal-counter timing was corrected in commit `935eea37625fc84072f19c7d7b45fbaae8704763`.
 - Sponsor campaigns are wallet-scoped in local storage.
-- No frontend references to legacy deployed addresses or `prolly_v2.py` were found by repository search.
+- No frontend references to legacy deployed contract addresses were found by repository search.
 REMAINING:
 - Production build/lint on the user's Ubuntu environment.
 - Final sponsor dashboard cleanup and generated-link prototype limitations.

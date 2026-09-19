@@ -40,3 +40,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env.local
+
+# Python caches and generated files
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local/generated GenLayer files
+genlayer-template-test/node_modules/
+genlayer-template-test/deploy/deployScript.js
+
+# Local backups and temporary archives
+*.backup
+*.bak
+*.orig
+*.zip

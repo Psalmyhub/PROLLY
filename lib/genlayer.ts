@@ -13,11 +13,12 @@ import type {
 } from "genlayer-js/types";
 
 export const PROLLY_CONTRACT_ADDRESS =
-  "0xFAFA753b809B1293E2660086215634FA15Cd8E15" as Address;
+  "0x379a8448b39926AB82DFe428F02A44cD9A2544c6" as Address;
 
 export const PROLLY_CONTRACT_OWNER =
   (process.env.NEXT_PUBLIC_PROLLY_CONTRACT_OWNER ||
     "0xB41f7CcF919515a4741C7AAd43cFfCd56A20Ee31") as Address;
+
 export const STUDIONET_CHAIN_ID = 61999;
 
 export type OnChainProlly = {
@@ -58,12 +59,6 @@ function getProvider(): Eip1193Provider {
   return provider;
 }
 
-/*
- * READ CLIENT
- *
- * Reads do not need a wallet or injected provider.
- * GenLayer's readContract API supports account-free reads.
- */
 function getReadClient() {
   const endpoint =
     typeof window !== "undefined"
@@ -76,21 +71,22 @@ function getReadClient() {
   });
 }
 
-/*
- * WRITE CLIENT
- *
- * Writes need the connected browser wallet.
- */
 async function getWriteClient(account: Address) {
   const provider = getProvider();
+
   const accounts = await provider.request({
     method: "eth_accounts",
   });
+
   const connectedAccounts = Array.isArray(accounts)
     ? accounts.map(String)
     : [];
 
-  if (!connectedAccounts.some((item) => item.toLowerCase() === account.toLowerCase())) {
+  if (
+    !connectedAccounts.some(
+      (item) => item.toLowerCase() === account.toLowerCase(),
+    )
+  ) {
     throw new Error(
       `Connected wallet account does not match the requested account (${account}). Reconnect the correct wallet.`,
     );
@@ -99,6 +95,7 @@ async function getWriteClient(account: Address) {
   const chainId = String(
     await provider.request({ method: "eth_chainId" }),
   );
+
   const numericChainId = chainId.startsWith("0x")
     ? Number.parseInt(chainId, 16)
     : Number(chainId);
@@ -128,7 +125,9 @@ function asBoolean(value: unknown): boolean {
   return Boolean(value);
 }
 
-async function waitForTransaction(hash: string): Promise<GenLayerTransaction> {
+async function waitForTransaction(
+  hash: string,
+): Promise<GenLayerTransaction> {
   const client = getReadClient();
   let receipt: GenLayerTransaction;
 
@@ -147,11 +146,13 @@ async function waitForTransaction(hash: string): Promise<GenLayerTransaction> {
 
   const execution = receipt.txExecutionResultName;
   const result = receipt.resultName;
+
   if (execution === ExecutionResult.FINISHED_WITH_ERROR) {
     throw new Error(
       `GenLayer execution failed: ${extractReceiptError(receipt)}`,
     );
   }
+
   if (
     result === "MAJORITY_DISAGREE" ||
     result === "NO_MAJORITY" ||
@@ -160,8 +161,13 @@ async function waitForTransaction(hash: string): Promise<GenLayerTransaction> {
     throw new Error(`GenLayer consensus failed: ${result}.`);
   }
 
-  if (execution && execution !== ExecutionResult.FINISHED_WITH_RETURN) {
-    throw new Error(`GenLayer transaction did not finish successfully: ${execution}.`);
+  if (
+    execution &&
+    execution !== ExecutionResult.FINISHED_WITH_RETURN
+  ) {
+    throw new Error(
+      `GenLayer transaction did not finish successfully: ${execution}.`,
+    );
   }
 
   return receipt;
@@ -171,33 +177,36 @@ function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function extractReceiptError(receipt: GenLayerTransaction): string {
+function extractReceiptError(
+  receipt: GenLayerTransaction,
+): string {
   const leaders = receipt.consensus_data?.leader_receipt ?? [];
   const first = leaders[0];
+
   return first?.error || first?.result || "unknown execution error";
 }
 
 function requireContractOwner(account: Address): void {
-  if (account.toLowerCase() !== PROLLY_CONTRACT_OWNER.toLowerCase()) {
+  if (
+    account.toLowerCase() !==
+    PROLLY_CONTRACT_OWNER.toLowerCase()
+  ) {
     throw new Error(
       `Only the deployed contract owner (${PROLLY_CONTRACT_OWNER}) can perform this operation.`,
     );
   }
 }
 
-export function isContractOwner(account: Address | undefined): boolean {
+export function isContractOwner(
+  account: Address | undefined,
+): boolean {
   return Boolean(
-    account && account.toLowerCase() === PROLLY_CONTRACT_OWNER.toLowerCase(),
+    account &&
+      account.toLowerCase() ===
+        PROLLY_CONTRACT_OWNER.toLowerCase(),
   );
 }
 
-/*
- * The contract does NOT expose get_next_prolly_id().
- *
- * IDs are sequential and get_name(id) returns an empty string
- * when that ID does not exist, so we determine the next ID by
- * scanning until the first unused ID.
- */
 export async function getNextProllyId(): Promise<bigint> {
   const client = getReadClient();
 
@@ -216,11 +225,18 @@ export async function getNextProllyId(): Promise<bigint> {
   }
 }
 
-function extractReturnedId(receipt: GenLayerTransaction): bigint | null {
-  const result = receipt.consensus_data?.leader_receipt?.[0]?.result;
+function extractReturnedId(
+  receipt: GenLayerTransaction,
+): bigint | null {
+  const result =
+    receipt.consensus_data?.leader_receipt?.[0]?.result;
+
   if (!result) return null;
 
-  const match = String(result).match(/(?:payload|result|return_data)[^0-9]*([0-9]+)/i);
+  const match = String(result).match(
+    /(?:payload|result|return_data)[^0-9]*([0-9]+)/i,
+  );
+
   if (!match) return null;
 
   try {
@@ -230,10 +246,15 @@ function extractReturnedId(receipt: GenLayerTransaction): bigint | null {
   }
 }
 
-async function findCreatedProllyId(name: string): Promise<bigint | null> {
+async function findCreatedProllyId(
+  name: string,
+): Promise<bigint | null> {
   for (let id = 1n; id <= 10000n; id++) {
-    if ((await getName(id)) === name) return id;
+    if ((await getName(id)) === name) {
+      return id;
+    }
   }
+
   return null;
 }
 
@@ -245,18 +266,26 @@ export async function createProlly(
   winnerCount: bigint,
 ): Promise<{ prollyId: bigint; hash: string }> {
   requireContractOwner(account);
+
   const client = await getWriteClient(account);
 
   const hash = await client.writeContract({
     address: PROLLY_CONTRACT_ADDRESS,
     functionName: "create_prolly",
-    args: [name, entryFee, maxParticipants, winnerCount],
+    args: [
+      name,
+      entryFee,
+      maxParticipants,
+      winnerCount,
+    ],
     value: 0n,
   });
 
   const receipt = await waitForTransaction(String(hash));
   const returnedId = extractReturnedId(receipt);
-  const prollyId = returnedId ?? (await findCreatedProllyId(name));
+
+  const prollyId =
+    returnedId ?? (await findCreatedProllyId(name));
 
   if (prollyId === null) {
     throw new Error(
@@ -309,6 +338,7 @@ export async function closeProlly(
   prollyId: bigint | string | number,
 ) {
   requireContractOwner(account);
+
   const client = await getWriteClient(account);
 
   const hash = await client.writeContract({
@@ -475,7 +505,7 @@ export async function getParticipantCount(
   const result = await client.readContract({
     address: PROLLY_CONTRACT_ADDRESS,
     functionName: "get_participant_count",
-    args: [BigInt(prollyId),],
+    args: [BigInt(prollyId)],
   });
 
   return asBigInt(result);
@@ -556,7 +586,9 @@ export async function getOnChainProlly(
   }
 }
 
-export async function getAllOnChainProllys(): Promise<OnChainProlly[]> {
+export async function getAllOnChainProllys(): Promise<
+  OnChainProlly[]
+> {
   const result: OnChainProlly[] = [];
 
   for (let id = 1n; ; id++) {
