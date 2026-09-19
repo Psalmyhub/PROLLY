@@ -42,6 +42,8 @@ export default function SponsorDashboard() {
   const [winnerCount, setWinnerCount] = useState("1");
   const [maxParticipants, setMaxParticipants] = useState("100");
   const [rewardType, setRewardType] = useState<SponsorRewardType>("xp");
+  const [rewardAmount, setRewardAmount] = useState("");
+  const [rewardCurrency, setRewardCurrency] = useState("NGN");
   const [rewardLabel, setRewardLabel] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [community, setCommunity] = useState("");
@@ -84,6 +86,7 @@ export default function SponsorDashboard() {
     if (!topic.trim() || !description.trim()) return setMessage("Topic and description are required.");
     if (!Number.isInteger(winners) || winners < 1 || winners > max) return setMessage("Winner count must be between 1 and maximum participants.");
     if (!Number.isInteger(max) || max < 1) return setMessage("Maximum participants must be at least 1.");
+    if (rewardType !== "fun" && (!rewardAmount.trim() || Number(rewardAmount) <= 0)) return setMessage("Enter a reward amount for each winner.");
 
     const selected: SponsorParticipant[] =
       type === "manual"
@@ -117,6 +120,8 @@ export default function SponsorDashboard() {
       winnerCount: winners,
       maxParticipants: max,
       rewardType,
+      rewardAmount: rewardType !== "fun" ? rewardAmount.trim() : undefined,
+      rewardCurrency: rewardType !== "fun" ? rewardCurrency.trim().toUpperCase() : undefined,
       rewardLabel: rewardType === "other" ? rewardLabel.trim() : undefined,
       participantsJoined: type === "manual" ? selected.length : 0,
       selectedParticipants: selected,
@@ -145,6 +150,8 @@ export default function SponsorDashboard() {
     setWinnerCount("1");
     setMaxParticipants("100");
     setRewardType("xp");
+    setRewardAmount("");
+    setRewardCurrency("NGN");
     setRewardLabel("");
     setExpiresAt("");
     setParticipants([{ username: "", walletAddress: "" }]);
@@ -178,7 +185,7 @@ export default function SponsorDashboard() {
 
   if (!approved) {
     return (
-      <main className="min-h-screen bg-zinc-950 p-8 text-white">
+      <main className="min-h-screen bg-zinc-950 px-4 py-6 text-white sm:p-8">
         <div className="mx-auto max-w-2xl pt-20">
           <p className="text-sm uppercase tracking-widest text-violet-400">Sponsor Dashboard</p>
           <h1 className="mt-4 text-3xl font-bold">Sponsor access required</h1>
@@ -192,15 +199,15 @@ export default function SponsorDashboard() {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
           <Link href="/" className="text-2xl font-bold">PROLLY<span className="text-violet-400">.</span></Link>
           <div className="flex gap-3"><WorkspaceSwitcher /><Link href="/prollys" className="rounded-full border border-zinc-700 px-5 py-2 text-sm">Explore</Link></div>
         </div>
       </nav>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <p className="text-sm uppercase tracking-widest text-violet-400">Sponsor Workspace</p>
-        <h1 className="mt-4 text-4xl font-bold">Create a Sponsor Prolly.</h1>
+        <h1 className="mt-4 text-3xl font-bold sm:text-4xl">Create a Sponsor Prolly.</h1>
         <p className="mt-4 max-w-3xl text-zinc-400">Sponsors have exactly two formats: Link Prolly and Manual Prolly. Both are free. The winner selection layer remains GenLayer; this workspace only prepares the Sponsor Prolly.</p>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-2">
@@ -234,6 +241,13 @@ export default function SponsorDashboard() {
               <option value="fun">Just for fun</option>
               <option value="other">Other</option>
             </select>
+            {rewardType !== "fun" && (
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1.4fr_1fr]">
+                <input inputMode="decimal" value={rewardAmount} onChange={(e) => setRewardAmount(e.target.value)} placeholder="Reward amount per winner" className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" />
+                <input value={rewardCurrency} onChange={(e) => setRewardCurrency(e.target.value)} placeholder="Currency / unit (e.g. NGN, USD, XP)" className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" />
+              </div>
+            )}
+            {rewardType !== "fun" && <p className="mt-2 text-xs leading-5 text-zinc-500">This amount is paid directly by the sponsor to each winner. It is not deposited into the Sponsor Prolly contract.</p>}
             {rewardType === "other" && (
               <input value={rewardLabel} onChange={(e) => setRewardLabel(e.target.value)} placeholder="Describe the winner reward" className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" />
             )}
@@ -277,7 +291,7 @@ export default function SponsorDashboard() {
 
             <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
               <b className="text-emerald-300">No fees</b>
-              <p className="mt-1 text-xs text-zinc-500">Sponsor and participants pay 0 GEN for Sponsor Prollys.</p>
+              <p className="mt-1 text-xs text-zinc-500">Participants do not pay an entry fee. The sponsor pays each winner directly after the GenLayer result.</p>
             </div>
 
             <button onClick={createCampaign} className="mt-6 w-full rounded-full bg-violet-500 py-3 font-semibold">Save Sponsor Prolly</button>
@@ -298,7 +312,7 @@ export default function SponsorDashboard() {
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <span>Winners: <b>{campaign.winnerCount}</b></span>
                       <span>Maximum: <b>{campaign.maxParticipants}</b></span>
-                      <span>Reward: <b>{rewardName(campaign.rewardType, campaign.rewardLabel)}</b></span>
+                      <span>Reward: <b>{campaign.rewardType === "fun" ? "Just for fun" : `${campaign.rewardAmount ?? "—"} ${campaign.rewardCurrency ?? ""} per winner`.trim()}</b></span>
                       {campaign.type === "link" ? <><span>Access expires: <b>{formatTime(campaign.expiresAt)}</b></span></> : <span>Participants: <b>{campaign.selectedParticipants.length}/{campaign.maxParticipants}</b></span>}
                     </div>
                     {campaign.type === "link" && campaign.accessToken && campaign.status === "published" && (
