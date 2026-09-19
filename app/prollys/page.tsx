@@ -206,13 +206,13 @@ export default function ProllysPage() {
   }, [prollys, onChainProllys, search, creatorFilter, favorites, statusFilter]);
 
   if (!mounted) {
-    return <main className="min-h-screen bg-zinc-950 text-white"><div className="flex min-h-screen items-center justify-center"><p className="text-zinc-400">Loading...</p></div></main>;
+    return <main className="min-h-screen bg-zinc-950 px-3 text-white sm:px-0"><div className="flex min-h-screen items-center justify-center"><p className="text-zinc-400">Loading...</p></div></main>;
   }
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
           <Link href="/" className="text-2xl font-bold tracking-tight">PROLLY<span className="text-violet-400">.</span></Link>
           <div className="flex items-center gap-3">
             {address && (
@@ -225,11 +225,11 @@ export default function ProllysPage() {
         </div>
       </nav>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">Explore</p>
-            <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Choose your Prolly.</h1>
+            <h1 className="mt-4 text-3xl font-bold sm:text-5xl">Choose your Prolly.</h1>
             <p className="mt-5 text-lg leading-8 text-zinc-400">Discover active Prollys. Every participant gets one opportunity.</p>
           </div>
           <button onClick={loadData} disabled={loading} className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">{loading ? "Refreshing..." : "Refresh"}</button>
