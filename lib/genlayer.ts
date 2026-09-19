@@ -31,6 +31,14 @@ export type OnChainProlly = {
   closed: boolean;
   winnersFinalized: boolean;
   randomSeed: string;
+  description: string;
+  creatorRole: string;
+  sponsorMode: string;
+  rewardType: string;
+  rewardLabel: string;
+  rewardAmount: string;
+  rewardCurrency: string;
+  accessExpiry: bigint;
 };
 
 type Eip1193Provider = {
@@ -205,6 +213,132 @@ export function isContractOwner(
       account.toLowerCase() ===
         PROLLY_CONTRACT_OWNER.toLowerCase(),
   );
+}
+
+
+
+export async function getSponsorFeeGen(): Promise<bigint> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_sponsor_fee_gen",
+    args: [],
+  });
+
+  return asBigInt(result);
+}
+
+export async function getWalletByUsername(
+  username: string,
+): Promise<Address | null> {
+  const client = getReadClient();
+  const normalized = username.trim().replace(/^@/, "").toLowerCase();
+
+  if (!normalized) return null;
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_wallet_by_username",
+    args: [normalized],
+  });
+
+  const wallet = asString(result);
+  return wallet ? (wallet as Address) : null;
+}
+
+export async function getMyProfile(
+  account: Address,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_profile",
+    args: [account],
+  });
+
+  return asString(result);
+}
+
+export async function registerProfile(
+  account: Address,
+  username: string,
+): Promise<string> {
+  const cleanUsername = username.trim().replace(/^@/, "");
+
+  if (!cleanUsername) {
+    throw new Error("Username is required.");
+  }
+
+  const client = await getWriteClient(account);
+
+  const hash = await client.writeContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "register_profile",
+    args: [cleanUsername],
+    value: 0n,
+  });
+
+  await waitForTransaction(String(hash));
+  return String(hash);
+}
+
+export type CreateSponsorProllyInput = {
+  name: string;
+  description: string;
+  mode: "link" | "manual";
+  rewardType: "xp" | "crypto" | "fun" | "other";
+  rewardLabel: string;
+  rewardAmount: string;
+  rewardCurrency: string;
+  maxParticipants: bigint;
+  winnerCount: bigint;
+  lifetimeSeconds: bigint;
+  accessToken: string;
+  participantAddresses: Address[];
+  sponsorFeeGen: bigint;
+};
+
+export async function createSponsorProlly(
+  account: Address,
+  input: CreateSponsorProllyInput,
+): Promise<{ prollyId: bigint; hash: string }> {
+  const client = await getWriteClient(account);
+
+  const hash = await client.writeContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "create_sponsor_prolly",
+    args: [
+      input.name,
+      input.description,
+      input.mode,
+      input.rewardType,
+      input.rewardLabel,
+      input.rewardAmount,
+      input.rewardCurrency,
+      input.maxParticipants,
+      input.winnerCount,
+      input.lifetimeSeconds,
+      input.accessToken,
+      input.participantAddresses.join(","),
+    ],
+    value: input.sponsorFeeGen,
+  });
+
+  const receipt = await waitForTransaction(String(hash));
+  const returnedId = extractReturnedId(receipt);
+
+  if (returnedId === null) {
+    throw new Error(
+      "Sponsor publish succeeded, but the created Prolly ID could not be read from GenLayer.",
+    );
+  }
+
+  return {
+    prollyId: returnedId,
+    hash: String(hash),
+  };
 }
 
 export async function getNextProllyId(): Promise<bigint> {
@@ -545,21 +679,38 @@ export async function getOnChainProlly(
   const id = BigInt(prollyId);
 
   try {
+    const client = getReadClient();
     const [
       name,
+      description,
       entryFee,
       maxParticipants,
       winnerCount,
       participantCount,
+      creatorRole,
+      sponsorMode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      accessExpiry,
       closed,
       winnersFinalized,
       randomSeed,
     ] = await Promise.all([
       getName(id),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_description", args: [id] }).then(asString),
       getEntryFee(id),
       getMaxParticipants(id),
       getWinnerCount(id),
       getParticipantCount(id),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_creator_role", args: [id] }).then(asString),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_sponsor_mode", args: [id] }).then(asString),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_reward_type", args: [id] }).then(asString),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_reward_label", args: [id] }).then(asString),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_reward_amount", args: [id] }).then(asString),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_reward_currency", args: [id] }).then(asString),
+      client.readContract({ address: PROLLY_CONTRACT_ADDRESS, functionName: "get_access_expiry", args: [id] }).then(asBigInt),
       isClosed(id),
       areWinnersFinalized(id),
       getRandomSeed(id),
@@ -575,6 +726,14 @@ export async function getOnChainProlly(
       closed,
       winnersFinalized,
       randomSeed,
+      description,
+      creatorRole,
+      sponsorMode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      accessExpiry,
     };
   } catch (error) {
     console.error(
