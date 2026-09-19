@@ -214,7 +214,14 @@ export default function ProllysPage() {
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
           <Link href="/" className="text-2xl font-bold tracking-tight">PROLLY<span className="text-violet-400">.</span></Link>
-          <Link href="/" className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800">Home</Link>
+          <div className="flex items-center gap-3">
+            {address && (
+              <Link href="/profile" className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800">
+                Profile
+              </Link>
+            )}
+            <Link href="/" className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800">Home</Link>
+          </div>
         </div>
       </nav>
 
