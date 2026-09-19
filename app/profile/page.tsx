@@ -9,6 +9,7 @@ import {
   getParticipants,
   getWinners,
   registerProfile,
+  getMyProfile,
   type OnChainProlly,
 } from "@/lib/genlayer";
 import { loadProllys, type Prolly } from "@/lib/prolly-store";
@@ -237,7 +238,17 @@ export default function ProfilePage() {
     }
 
     try {
-      await registerProfile(address, cleanUsername);
+      const onChainUsername = await getMyProfile(address);
+
+      if (onChainUsername && onChainUsername !== cleanUsername.toLowerCase()) {
+        throw new Error(
+          `This wallet already owns @${onChainUsername}. Username changes are not supported on-chain.`,
+        );
+      }
+
+      if (!onChainUsername) {
+        await registerProfile(address, cleanUsername);
+      }
 
       const now = Date.now();
       const updatedProfile: UserProfile = {
