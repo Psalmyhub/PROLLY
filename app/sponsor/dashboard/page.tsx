@@ -5,7 +5,13 @@ import { useAccount } from "wagmi";
 import { useEffect, useState } from "react";
 import WorkspaceSwitcher from "@/app/components/WorkspaceSwitcher";
 import { getRole } from "@/lib/role-store";
-import { PROLLY_CONTRACT_OWNER } from "@/lib/genlayer";
+import {
+  PROLLY_CONTRACT_OWNER,
+  createSponsorProlly,
+  getSponsorFeeGen,
+  getWalletByUsername,
+} from "@/lib/genlayer";
+import type { Address } from "viem";
 import {
   loadSponsorCampaigns,
   removeSponsorCampaign,
@@ -49,12 +55,28 @@ export default function SponsorDashboard() {
   const [community, setCommunity] = useState("");
   const [participants, setParticipants] = useState<SponsorParticipant[]>([{ username: "", walletAddress: "" }]);
   const [message, setMessage] = useState("");
+  const [sponsorFeeGen, setSponsorFeeGen] = useState<bigint | null>(null);
+  const [publishing, setPublishing] = useState<string | null>(null);
 
   const approved = !!address && ["sponsor", "admin"].includes(getRole(address, PROLLY_CONTRACT_OWNER));
 
   useEffect(() => {
     setCampaigns(address ? loadSponsorCampaigns(address) : []);
   }, [address]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSponsorFeeGen()
+      .then((fee) => {
+        if (!cancelled) setSponsorFeeGen(fee);
+      })
+      .catch(() => {
+        if (!cancelled) setSponsorFeeGen(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function updateParticipant(index: number, value: string) {
     setParticipants((current) =>
@@ -159,22 +181,115 @@ export default function SponsorDashboard() {
     setMessage("Sponsor Prolly brief saved locally. The private link will be generated only when you publish.");
   }
 
-  function publish(id: string) {
-    if (!address) return;
+  async function publish(id: string) {
+    if (!address) {
+      setMessage("Connect your sponsor wallet first.");
+      return;
+    }
+
+    const campaign = campaigns.find((item) => item.id === id);
+    if (!campaign) return;
+
     const now = Date.now();
-    const next = campaigns.map((campaign) => {
-      if (campaign.id !== id) return campaign;
-      const published = {
+    if (campaign.type === "link" && campaign.expiresAt && campaign.expiresAt <= now) {
+      setMessage("This access link has already expired. Create a new Sponsor Prolly.");
+      return;
+    }
+
+    try {
+      setPublishing(id);
+      setMessage("Preparing the Sponsor Prolly for GenLayer...");
+
+      const fee = sponsorFeeGen ?? await getSponsorFeeGen();
+      if (fee <= 0n) {
+        throw new Error("Sponsor publishing fee is not configured on the deployed contract. The contract owner must set it first.");
+      }
+
+      let participantAddresses: Address[] = [];
+      let accessToken = "";
+      let lifetimeSeconds = 0n;
+
+      if (campaign.type === "link") {
+        accessToken = campaign.accessToken ?? makeToken();
+        if (!campaign.expiresAt) {
+          throw new Error("Link expiration is missing.");
+        }
+        lifetimeSeconds = BigInt(
+          Math.max(1, Math.floor((campaign.expiresAt - now) / 1000)),
+        );
+        if (lifetimeSeconds > 3600n) lifetimeSeconds = 3600n;
+      } else {
+        const resolved: Address[] = [];
+
+        for (const participant of campaign.selectedParticipants) {
+          if (participant.walletAddress?.trim()) {
+            resolved.push(participant.walletAddress.trim() as Address);
+            continue;
+          }
+
+          if (!participant.username?.trim()) {
+            throw new Error("Every manual participant must have a username or wallet address.");
+          }
+
+          const wallet = await getWalletByUsername(participant.username);
+          if (!wallet) {
+            throw new Error(`Username @${participant.username} is not registered on GenLayer.`);
+          }
+
+          resolved.push(wallet);
+        }
+
+        const unique = new Set(resolved.map((wallet) => wallet.toLowerCase()));
+        if (unique.size !== resolved.length) {
+          throw new Error("The manual participant list contains the same wallet more than once.");
+        }
+
+        participantAddresses = resolved;
+      }
+
+      setMessage("Please confirm the Sponsor publishing transaction in MetaMask.");
+
+      const result = await createSponsorProlly(address, {
+        name: campaign.topic,
+        description: campaign.description,
+        mode: campaign.type,
+        rewardType: campaign.rewardType,
+        rewardLabel: campaign.rewardLabel ?? "",
+        rewardAmount: campaign.rewardAmount ?? "",
+        rewardCurrency: campaign.rewardCurrency ?? "",
+        maxParticipants: BigInt(campaign.maxParticipants),
+        winnerCount: BigInt(campaign.winnerCount),
+        lifetimeSeconds,
+        accessToken,
+        participantAddresses,
+        sponsorFeeGen: fee,
+      });
+
+      const published: SponsorCampaign = {
         ...campaign,
-        status: "published" as const,
-        accessToken: campaign.type === "link" ? campaign.accessToken ?? makeToken() : undefined,
+        status: "published",
+        accessToken: campaign.type === "link" ? accessToken : undefined,
+        onChainId: result.prollyId.toString(),
+        publishTxHash: result.hash,
       };
-      if (published.type === "link" && published.expiresAt && published.expiresAt <= now) return campaign;
-      return published;
-    });
-    saveSponsorCampaigns(address, next);
-    setCampaigns(next);
-    setMessage("Published. The private access link was generated at publish time.");
+
+      const next = campaigns.map((item) =>
+        item.id === campaign.id ? published : item,
+      );
+
+      saveSponsorCampaigns(address, next);
+      setCampaigns(next);
+      setMessage(
+        `Published on GenLayer as Prolly #${result.prollyId.toString()}.`,
+      );
+    } catch (error) {
+      console.error("Sponsor publish failed:", error);
+      setMessage(
+        `Publish failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setPublishing(null);
+    }
   }
 
   function remove(id: string) {
@@ -208,7 +323,7 @@ export default function SponsorDashboard() {
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <p className="text-sm uppercase tracking-widest text-violet-400">Sponsor Workspace</p>
         <h1 className="mt-4 text-3xl font-bold sm:text-4xl">Create a Sponsor Prolly.</h1>
-        <p className="mt-4 max-w-3xl text-zinc-400">Sponsors have exactly two formats: Link Prolly and Manual Prolly. Both are free. The winner selection layer remains GenLayer; this workspace only prepares the Sponsor Prolly.</p>
+        <p className="mt-4 max-w-3xl text-zinc-400">Sponsors have exactly two formats: Link Prolly and Manual Prolly. Participants do not pay an entry fee. Publishing uses the sponsor fee configured on GenLayer.</p>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-2">
           <section className="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-7">
@@ -290,8 +405,15 @@ export default function SponsorDashboard() {
             )}
 
             <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-              <b className="text-emerald-300">No fees</b>
-              <p className="mt-1 text-xs text-zinc-500">Participants do not pay an entry fee. The sponsor pays each winner directly after the GenLayer result.</p>
+              <b className="text-emerald-300">Sponsor publishing fee</b>
+              <p className="mt-1 text-xs text-zinc-500">
+                {sponsorFeeGen === null
+                  ? "Loading the configured GenLayer publishing fee..."
+                  : sponsorFeeGen === 0n
+                    ? "Not configured yet. The contract owner must set the sponsor fee before publishing."
+                    : `${sponsorFeeGen.toString()} GEN base units per published Sponsor Prolly.`}
+              </p>
+              <p className="mt-2 text-xs text-zinc-500">Participants do not pay an entry fee. The sponsor pays each winner directly after the GenLayer result.</p>
             </div>
 
             <button onClick={createCampaign} className="mt-6 w-full rounded-full bg-violet-500 py-3 font-semibold">Save Sponsor Prolly</button>
@@ -324,9 +446,10 @@ export default function SponsorDashboard() {
                       </div>
                     )}
                     {campaign.type === "link" && campaign.communityLinks.length > 0 && <div className="mt-4 text-xs text-zinc-500">Community: {campaign.communityLinks.map((link, index) => <a key={index} href={link.url} target="_blank" rel="noreferrer" className="ml-2 text-cyan-300">{link.label}</a>)}</div>}
+                    {campaign.onChainId && <div className="mt-4 rounded-xl border border-green-500/20 bg-green-500/5 px-3 py-2 text-xs text-green-300">On-chain Prolly #{campaign.onChainId}</div>}
                     {campaign.type === "manual" && <div className="mt-4 space-y-2">{campaign.selectedParticipants.map((participant, index) => <div key={index} className="rounded-xl bg-zinc-900 px-3 py-2 text-sm">{participant.username ? `@${participant.username}` : participant.walletAddress}</div>)}</div>}
                     <div className="mt-5 flex gap-3">
-                      {campaign.status === "draft" && <button onClick={() => publish(campaign.id)} className="flex-1 rounded-full bg-emerald-400 py-2 text-sm font-semibold text-black">Publish Prolly</button>}
+                      {campaign.status === "draft" && <button onClick={() => void publish(campaign.id)} disabled={publishing !== null} className="flex-1 rounded-full bg-emerald-400 py-2 text-sm font-semibold text-black disabled:opacity-50">{publishing === campaign.id ? "Publishing on GenLayer..." : "Publish Prolly"}</button>}
                       <button onClick={() => remove(campaign.id)} className="rounded-full border border-red-500/30 px-4 py-2 text-sm text-red-300">Delete</button>
                     </div>
                   </article>
