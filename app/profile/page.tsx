@@ -280,9 +280,9 @@ export default function ProfilePage() {
     : "Not connected";
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-zinc-950 px-3 text-white sm:px-0">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
           <Link href="/" className="text-2xl font-bold tracking-tight">
             PROLLY<span className="text-violet-400">.</span>
           </Link>
@@ -298,12 +298,12 @@ export default function ProfilePage() {
         </div>
       </nav>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <div>
           <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
             Prolly Identity
           </p>
-          <h1 className="mt-4 text-4xl font-bold sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-bold sm:text-5xl">
             Your Prolly profile.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-400">
@@ -411,7 +411,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-5">
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-5">
               {[
                 ["Joined", joinedCount],
                 ["Wins", wins],
@@ -569,7 +569,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        <div className="mt-6 flex gap-3">
+                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                           <Link
                             href={`/prollys/${item.chain.id.toString()}`}
                             className="flex-1 rounded-full border border-zinc-700 px-4 py-3 text-center text-sm font-semibold hover:bg-zinc-800"
