@@ -5,31 +5,31 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { getOnChainProlly, getParticipants, getWinners, hasJoinedProlly, type OnChainProlly } from "@/lib/genlayer";
-import { loadProfile } from "@/lib/profile-store";
+import { getProfileDisplayName, loadProfile } from "@/lib/profile-store";
 import { loadProllys, type Prolly } from "@/lib/prolly-store";
 
-type StoryEvent = { text: string; winner: boolean; wallet?: string };
+type StoryEvent = { text: string; emoji: string; winner: boolean; wallet?: string };
 
 const LOSER_EVENTS = [
-  "{name} was shot at the head.",
-  "{name} was caught in a sudden ambush.",
-  "{name} was eliminated during the final chase.",
-  "{name} fell into a hidden trap.",
-  "{name} was swept away by a powerful wave.",
-  "{name} could not survive the collapsing bridge.",
-  "{name} was caught outside the safe zone.",
-  "{name} was taken out in the final challenge.",
-  "{name} was stranded when the storm hit.",
-  "{name} missed the final escape.",
+  { text: "{name} was boxed by a kangaroo.", emoji: "🥊🦘" },
+  { text: "{name} was caught in a sudden ambush.", emoji: "🪤⚡" },
+  { text: "{name} was eliminated during the final chase.", emoji: "🏃💨" },
+  { text: "{name} fell into a hidden trap.", emoji: "🕳️🪤" },
+  { text: "{name} was swept away by a powerful wave.", emoji: "🌊😵" },
+  { text: "{name} could not survive the collapsing bridge.", emoji: "🌉💥" },
+  { text: "{name} was caught outside the safe zone.", emoji: "🚫🔴" },
+  { text: "{name} was taken out in the final challenge.", emoji: "🎯💥" },
+  { text: "{name} was stranded when the storm hit.", emoji: "⛈️🌪️" },
+  { text: "{name} missed the final escape.", emoji: "🚪🏃" },
 ];
 
 const WINNER_EVENTS = [
-  "{name} survived a plane crash.",
-  "{name} walked through the final storm and survived.",
-  "{name} escaped the final danger zone.",
-  "{name} survived every challenge.",
-  "{name} made it through the chaos.",
-  "{name} reached the final safe zone.",
+  { text: "{name} survived a plane crash.", emoji: "✈️💥🛡️" },
+  { text: "{name} walked through the final storm and survived.", emoji: "⛈️🚶🛡️" },
+  { text: "{name} escaped the final danger zone.", emoji: "🚨🏃💨" },
+  { text: "{name} survived every challenge.", emoji: "🏆💪" },
+  { text: "{name} made it through the chaos.", emoji: "🌪️🏆" },
+  { text: "{name} reached the final safe zone.", emoji: "🛡️🏁" },
 ];
 
 function hashSeed(seed: string, index: number): number {
@@ -49,8 +49,7 @@ function usernameFor(wallet: string, participants: string[], local: Prolly | nul
   if (localParticipant?.username) return localParticipant.username;
   const profile = loadProfile(wallet);
   if (profile?.username) return profile.username;
-  const index = participants.findIndex((p) => p.toLowerCase() === wallet.toLowerCase());
-  return index >= 0 ? `Player ${index + 1}` : "Player";
+  return getProfileDisplayName(wallet);
 }
 
 function buildStory(participants: string[], winners: string[], seed: string, local: Prolly | null): StoryEvent[] {
@@ -58,13 +57,13 @@ function buildStory(participants: string[], winners: string[], seed: string, loc
   const losers = participants.filter((p) => !winnerSet.has(p.toLowerCase()));
   const events: StoryEvent[] = losers.map((wallet, index) => {
     const name = usernameFor(wallet, participants, local);
-    const phrase = LOSER_EVENTS[hashSeed(seed, index) % LOSER_EVENTS.length];
-    return { text: phrase.replace("{name}", name), winner: false, wallet };
+    const event = LOSER_EVENTS[hashSeed(seed, index) % LOSER_EVENTS.length];
+    return { text: event.text.replace("{name}", name), emoji: event.emoji, winner: false, wallet };
   });
   winners.forEach((wallet, index) => {
     const name = usernameFor(wallet, participants, local);
-    const phrase = WINNER_EVENTS[hashSeed(seed, 1000 + index) % WINNER_EVENTS.length];
-    events.push({ text: phrase.replace("{name}", name), winner: true, wallet });
+    const event = WINNER_EVENTS[hashSeed(seed, 1000 + index) % WINNER_EVENTS.length];
+    events.push({ text: event.text.replace("{name}", name), emoji: event.emoji, winner: true, wallet });
   });
   return events;
 }
@@ -128,7 +127,7 @@ export default function ProllyBattlePage() {
     <header className="text-center"><p className="text-xs font-bold uppercase tracking-[0.35em] text-violet-400">{replay?"Battle Replay":"Live Battle"}</p><h1 className="mt-3 text-5xl font-black sm:text-7xl">PROLLY BATTLE TIME.</h1><p className="mt-4 text-zinc-400">{onChain.name}</p></header>
     <section className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-10">
       <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5"><p className="font-black text-violet-300">GENLAYER HAS ALREADY CHOSEN THE WINNERS.</p><p className="mt-2 text-sm leading-6 text-zinc-400">The story below is presentation only. It can randomize the order and wording of events, but it cannot decide who survives. The authoritative winner addresses came from the finalized GenLayer result.</p></div>
-      <div className="mt-8 space-y-3">{visible.map((event,index)=><div key={index} className={`rounded-2xl border p-5 ${event.winner?"border-emerald-400/30 bg-emerald-400/5":"border-white/10 bg-black/20"}`}><p className="text-base leading-7 text-zinc-100">{event.text}</p>{event.winner&&<p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-300">SURVIVED — ON-CHAIN WINNER</p>}</div>)}{visible.length===0&&<p className="text-center text-zinc-600">The Battle is about to begin...</p>}</div>
+      <div className="mt-8 space-y-3">{visible.map((event,index)=><div key={index} className={`rounded-2xl border p-5 ${event.winner?"border-emerald-400/30 bg-emerald-400/5":"border-white/10 bg-black/20"}`}><p className="text-base leading-7 text-zinc-100"><span className="mr-3 text-2xl" aria-hidden="true">{event.emoji}</span>{event.text}</p>{event.winner&&<p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-300">SURVIVED — ON-CHAIN WINNER</p>}</div>)}{visible.length===0&&<p className="text-center text-zinc-600">The Battle is about to begin...</p>}</div>
       {eventIndex>=story.length&&story.length>0&&<div className="mt-10 rounded-3xl border border-emerald-400/30 bg-emerald-400/5 p-6"><p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-300">Final survivors</p><div className="mt-4 space-y-2">{finalSurvivors.map((name,index)=><div key={index} className="rounded-xl bg-black/30 px-4 py-3 text-lg font-black">{name}</div>)}</div><p className="mt-5 text-sm font-semibold text-emerald-300">Final survivor set exactly matches the GenLayer winner list.</p></div>}
       <div className="mt-10 rounded-2xl border border-white/10 p-5"><p className="text-xs uppercase tracking-widest text-zinc-500">Authoritative winners</p><div className="mt-4 space-y-2">{winnerAddresses.map((wallet,index)=><div key={wallet} className="flex justify-between rounded-xl bg-black/30 px-4 py-3"><span className="font-semibold">{index+1}. {usernameFor(wallet,participants,local)}</span><span className="font-mono text-xs text-emerald-300">{wallet.slice(0,6)}...{wallet.slice(-4)}</span></div>)}</div></div>
     </section>
