@@ -2,6 +2,7 @@ import { normalizeAddress } from "@/lib/wallet-identity";
 
 export type SponsorCampaignType = "manual" | "link";
 export type SponsorParticipant = { username?: string; walletAddress: string };
+export type SponsorRewardType = "xp" | "crypto" | "fun" | "other";
 export type SponsorCommunityLink = { label: string; url: string };
 
 export type SponsorCampaign = {
@@ -12,11 +13,14 @@ export type SponsorCampaign = {
   type: SponsorCampaignType;
   winnerCount: number;
   maxParticipants: number;
+  rewardType: SponsorRewardType;
+  rewardLabel?: string;
   participantsJoined: number;
   selectedParticipants: SponsorParticipant[];
   startAt?: number;
   accessOpensAt?: number;
   accessToken?: string;
+  expiresAt?: number;
   communityLinks: SponsorCommunityLink[];
   createdAt: number;
   status: "draft" | "published";
@@ -37,6 +41,8 @@ function migrate(item: Record<string, unknown>): SponsorCampaign {
     type: item.type === "manual" ? "manual" : "link",
     winnerCount: Number(item.winnerCount ?? 1),
     maxParticipants: Number(item.maxParticipants ?? 1),
+    rewardType: item.rewardType === "crypto" || item.rewardType === "fun" || item.rewardType === "other" ? item.rewardType : "xp",
+    rewardLabel: typeof item.rewardLabel === "string" ? item.rewardLabel : undefined,
     participantsJoined: Number(item.participantsJoined ?? 0),
     selectedParticipants: Array.isArray(item.selectedParticipants) ? item.selectedParticipants as SponsorParticipant[] : [],
     startAt: typeof item.startAt === "number" ? item.startAt : undefined,
