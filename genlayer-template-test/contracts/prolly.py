@@ -56,7 +56,7 @@ class Prolly(gl.Contract):
     participant_order: TreeMap[str, u256]
 
     # Lifecycle
-    closed: TreeMap[u256, bool>
+    closed: TreeMap[u256, bool]
 
     # Winner state
     winner_finalized: TreeMap[u256, bool]
