@@ -26,6 +26,8 @@ export type SponsorCampaign = {
   communityLinks: SponsorCommunityLink[];
   createdAt: number;
   status: "draft" | "published";
+  onChainId?: string;
+  publishTxHash?: string;
 };
 
 const STORAGE_KEY = "prolly-sponsor-campaigns";
@@ -70,6 +72,9 @@ function migrate(item: Record<string, unknown>): SponsorCampaign {
       : [],
     createdAt: Number(item.createdAt ?? Date.now()),
     status: item.status === "published" ? "published" : "draft",
+    onChainId: typeof item.onChainId === "string" ? item.onChainId : undefined,
+    publishTxHash:
+      typeof item.publishTxHash === "string" ? item.publishTxHash : undefined,
   };
 }
 
