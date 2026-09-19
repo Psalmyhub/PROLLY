@@ -28,33 +28,56 @@ function genToNumber(value: bigint): number {
 }
 
 function getLocalMetadata(onChain: OnChainProlly, localProllys: Prolly[]): Prolly {
-  const existing = localProllys.find((item) => item.onChainId === onChain.id.toString());
+  const existing = localProllys.find(
+    (item) => item.onChainId === onChain.id.toString(),
+  );
+
+  const isSponsor = onChain.creatorRole === "sponsor";
+
   if (existing) {
     return {
       ...existing,
       title: existing.title || onChain.name,
+      description: existing.description || onChain.description,
+      creatorRole: isSponsor ? "sponsor" : "admin",
+      sponsorCategory: isSponsor ? onChain.sponsorMode : existing.sponsorCategory,
       entryAmount: genToNumber(onChain.entryFee),
       maxParticipants: Number(onChain.maxParticipants),
       winners: Number(onChain.winnerCount),
       participants: Number(onChain.participantCount),
+      sponsorRewardType: isSponsor ? onChain.rewardType : existing.sponsorRewardType,
+      sponsorRewardLabel: isSponsor ? onChain.rewardLabel : existing.sponsorRewardLabel,
+      sponsorRewardAmount: isSponsor ? onChain.rewardAmount : existing.sponsorRewardAmount,
+      sponsorRewardCurrency: isSponsor ? onChain.rewardCurrency : existing.sponsorRewardCurrency,
+      sponsorExpiresAt: isSponsor && onChain.accessExpiry > 0n
+        ? Number(onChain.accessExpiry) * 1000
+        : existing.sponsorExpiresAt,
     };
   }
+
   return {
     id: `onchain-${onChain.id}`,
     onChainId: onChain.id.toString(),
     title: onChain.name,
-    description: "",
-    creatorUsername: "Admin",
-    creatorRole: "admin",
+    description: onChain.description,
+    creatorUsername: isSponsor ? "Sponsor" : "Admin",
+    creatorRole: isSponsor ? "sponsor" : "admin",
     entryAmount: genToNumber(onChain.entryFee),
     participants: Number(onChain.participantCount),
     maxParticipants: Number(onChain.maxParticipants),
     winners: Number(onChain.winnerCount),
     closingMode: "participants",
     createdAt: Date.now(),
+    sponsorCategory: isSponsor ? onChain.sponsorMode : undefined,
+    sponsorRewardType: isSponsor ? onChain.rewardType as Prolly["sponsorRewardType"] : undefined,
+    sponsorRewardLabel: isSponsor ? onChain.rewardLabel : undefined,
+    sponsorRewardAmount: isSponsor ? onChain.rewardAmount : undefined,
+    sponsorRewardCurrency: isSponsor ? onChain.rewardCurrency : undefined,
+    sponsorExpiresAt: isSponsor && onChain.accessExpiry > 0n
+      ? Number(onChain.accessExpiry) * 1000
+      : undefined,
   };
 }
-
 function getPostType(prolly: Prolly): "manual" | "link" | "admin" {
   if (prolly.creatorRole === "admin") return "admin";
   return prolly.sponsorCategory === "manual" ? "manual" : "link";
