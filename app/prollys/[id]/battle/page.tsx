@@ -8,7 +8,13 @@ import { getOnChainProlly, getParticipants, getWinners, hasJoinedProlly, type On
 import { getProfileDisplayName, loadProfile } from "@/lib/profile-store";
 import { loadProllys, type Prolly } from "@/lib/prolly-store";
 
-type StoryEvent = { text: string; emoji: string; winner: boolean; wallet?: string };
+type StoryEvent = {
+  text: string;
+  emoji: string;
+  winner: boolean;
+  wallet?: string;
+  names?: string[];
+};
 
 const LOSER_EVENTS = [
   { text: "{name} was boxed by a kangaroo.", emoji: "🥊🦘" },
@@ -69,7 +75,7 @@ function buildStory(participants: string[], winners: string[], seed: string, loc
   const events: StoryEvent[] = losers.map((wallet, index) => {
     const name = usernameFor(wallet, participants, local);
     const event = LOSER_EVENTS[hashSeed(seed, index) % LOSER_EVENTS.length];
-    return { text: event.text.replace("{name}", name), emoji: event.emoji, winner: false, wallet };
+    return { text: event.text.replace("{name}", name), emoji: event.emoji, winner: false, wallet, names: [name] };
   });
 
   for (let index = 0; index + 1 < participants.length; index += 2) {
@@ -85,13 +91,14 @@ function buildStory(participants: string[], winners: string[], seed: string, loc
       text: event.text.replace("{a}", left).replace("{b}", right),
       emoji: event.emoji,
       winner: false,
+      names: [left, right],
     });
   }
 
   winners.forEach((wallet, index) => {
     const name = usernameFor(wallet, participants, local);
     const event = WINNER_EVENTS[hashSeed(seed, 1000 + index) % WINNER_EVENTS.length];
-    events.push({ text: event.text.replace("{name}", name), emoji: event.emoji, winner: true, wallet });
+    events.push({ text: event.text.replace("{name}", name), emoji: event.emoji, winner: true, wallet, names: [name] });
   });
   return events;
 }
@@ -155,9 +162,26 @@ export default function ProllyBattlePage() {
     <header className="text-center"><p className="text-xs font-bold uppercase tracking-[0.35em] text-violet-400">{replay?"Battle Replay":"Live Battle"}</p><h1 className="mt-3 text-4xl font-black sm:text-7xl">PROLLY BATTLE TIME.</h1><p className="mt-4 text-zinc-400">{onChain.name}</p></header>
     <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-4 sm:mt-10 sm:p-10">
       <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5"><p className="font-black text-violet-300">GENLAYER HAS ALREADY CHOSEN THE WINNERS.</p><p className="mt-2 text-sm leading-6 text-zinc-400">The story below is presentation only. It can randomize the order and wording of events, but it cannot decide who survives. The authoritative winner addresses came from the finalized GenLayer result.</p></div>
-      <div className="mt-8 space-y-3">{visible.map((event,index)=><div key={index} className={`rounded-2xl border p-5 ${event.winner?"border-emerald-400/30 bg-emerald-400/5":"border-white/10 bg-black/20"}`}><p className="text-base leading-7 text-zinc-100"><span className="mr-3 text-2xl" aria-hidden="true">{event.emoji}</span>{event.text}</p>{event.winner&&<p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-300">SURVIVED — ON-CHAIN WINNER</p>}</div>)}{visible.length===0&&<p className="text-center text-zinc-600">The Battle is about to begin...</p>}</div>
-      {eventIndex>=story.length&&story.length>0&&<div className="mt-10 rounded-3xl border border-emerald-400/30 bg-emerald-400/5 p-6"><p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-300">Final survivors</p><div className="mt-4 space-y-2">{finalSurvivors.map((name,index)=><div key={index} className="rounded-xl bg-black/30 px-4 py-3 text-lg font-black">{name}</div>)}</div><p className="mt-5 text-sm font-semibold text-emerald-300">Final survivor set exactly matches the GenLayer winner list.</p></div>}
-      <div className="mt-10 rounded-2xl border border-white/10 p-5"><p className="text-xs uppercase tracking-widest text-zinc-500">Authoritative winners</p><div className="mt-4 space-y-2">{winnerAddresses.map((wallet,index)=><div key={wallet} className="flex justify-between rounded-xl bg-black/30 px-4 py-3"><span className="font-semibold">{index+1}. {usernameFor(wallet,participants,local)}</span><span className="font-mono text-xs text-emerald-300">{wallet.slice(0,6)}...{wallet.slice(-4)}</span></div>)}</div></div>
+      <div className="mt-8 space-y-3">{visible.map((event,index)=><div key={index} className={`rounded-2xl border p-5 ${event.winner?"border-emerald-400/30 bg-emerald-400/5":"border-white/10 bg-black/20"}`}><p className="text-base leading-7 text-zinc-100"><span className="mr-3 text-2xl" aria-hidden="true">{event.emoji}</span>{(() => {
+  const names = event.names ?? [];
+  if (names.length === 1) {
+    const name = names[0];
+    const parts = event.text.split(name);
+    return parts.map((part, i) => <span key={i}>{part}{i < parts.length - 1 && <strong className="font-black text-white">{name}</strong>}</span>);
+  }
+  if (names.length === 2) {
+    const first = names[0];
+    const second = names[1];
+    const firstParts = event.text.split(first);
+    return firstParts.map((part, i) => {
+      const secondParts = part.split(second);
+      return <span key={i}>{i > 0 && <strong className="font-black text-white">{first}</strong>}{secondParts.map((subpart, j) => <span key={j}>{subpart}{j < secondParts.length - 1 && <strong className="font-black text-white">{second}</strong>}</span>)}</span>;
+    });
+  }
+  return event.text;
+})()}</p>{event.winner&&<p className="mt-2 text-xs font-bold uppercase tracking-widest text-emerald-300">SURVIVED — ON-CHAIN WINNER</p>}</div>)}{visible.length===0&&<p className="text-center text-zinc-600">The Battle is about to begin...</p>}</div>
+      {eventIndex>=story.length&&story.length>0&&<div className="mt-10 rounded-3xl border border-emerald-400/30 bg-emerald-400/5 p-6"><p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-300">Final survivors</p><div className="mt-4 space-y-2">{finalSurvivors.map((name,index)=><div key={index} className="rounded-xl bg-black/30 px-4 py-3 text-lg"><strong className="font-black">{name}</strong></div>)}</div><p className="mt-5 text-sm font-semibold text-emerald-300">Final survivor set exactly matches the GenLayer winner list.</p></div>}
+      <div className="mt-10 rounded-2xl border border-white/10 p-5"><p className="text-xs uppercase tracking-widest text-zinc-500">Authoritative winners</p><div className="mt-4 space-y-2">{winnerAddresses.map((wallet,index)=><div key={wallet} className="flex justify-between rounded-xl bg-black/30 px-4 py-3"><span>{index+1}. <strong className="font-black">{usernameFor(wallet,participants,local)}</strong></span><span className="font-mono text-xs text-emerald-300">{wallet.slice(0,6)}...{wallet.slice(-4)}</span></div>)}</div></div>
     </section>
     <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row"><Link href={`/prollys/${id}`} className="rounded-xl border border-white/10 px-5 py-3 font-semibold">Back to Prolly</Link>{!replay&&<Link href={`/prollys/${id}/battle?replay=1`} className="rounded-xl bg-white px-5 py-3 font-semibold text-black">Watch Replay</Link>}</div>
   </div></main>;
