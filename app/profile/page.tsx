@@ -380,9 +380,14 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  <p className="mt-3 text-sm text-zinc-500">
-                    3–20 characters. Letters, numbers, and underscores only.
-                  </p>
+                  <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+                    <p className="text-sm font-semibold text-amber-300">
+                      Username is permanent and cannot be changed after registration. Choose carefully.
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-500">
+                      3–20 characters. Letters, numbers, and underscores only.
+                    </p>
+                  </div>
 
                   <label className="mt-6 block text-sm font-medium text-zinc-300">Bio</label>
                   <textarea value={bio} onChange={(event) => setBio(event.target.value)} rows={3} placeholder="About me / community information" className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-violet-500" />
