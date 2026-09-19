@@ -239,19 +239,13 @@ export function isContractOwner(
 export async function getNextProllyId(): Promise<bigint> {
   const client = getReadClient();
 
-  for (let id = 1n; ; id++) {
-    const result = await client.readContract({
-      address: PROLLY_CONTRACT_ADDRESS,
-      functionName: "get_name",
-      args: [id],
-    });
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_next_prolly_id",
+    args: [],
+  });
 
-    const name = asString(result);
-
-    if (!name) {
-      return id;
-    }
-  }
+  return asBigInt(result);
 }
 
 function extractReturnedId(
@@ -1085,19 +1079,70 @@ export async function getOnChainProlly(
 export async function getAllOnChainProllys(): Promise<
   OnChainProlly[]
 > {
+  const nextId = await getNextProllyId();
   const result: OnChainProlly[] = [];
 
-  for (let id = 1n; ; id++) {
-    const name = await getName(id);
+  // The Prolly list is a high-traffic screen. Do not call every
+  // metadata getter used by the detail page here; each read is a
+  // separate RPC request on GenLayer Studionet.
+  //
+  // The list only needs the fields required to render/filter cards.
+  // Detail pages can load the remaining reward/randomness metadata.
+  for (let id = 1n; id < nextId; id++) {
+    try {
+      const client = getReadClient();
 
-    if (!name) {
-      break;
-    }
+      const [
+        name,
+        description,
+        entryFee,
+        maxParticipants,
+        winnerCount,
+        participantCount,
+        creatorRole,
+        sponsorMode,
+        closed,
+        winnersFinalized,
+      ] = await Promise.all([
+        getName(id),
+        getDescription(id),
+        getEntryFee(id),
+        getMaxParticipants(id),
+        getWinnerCount(id),
+        getParticipantCount(id),
+        getCreatorRole(id),
+        getSponsorMode(id),
+        isClosed(id),
+        areWinnersFinalized(id),
+      ]);
 
-    const prolly = await getOnChainProlly(id);
+      result.push({
+        id,
+        name,
+        entryFee,
+        maxParticipants,
+        winnerCount,
+        participantCount,
+        closed,
+        winnersFinalized,
+        // Loaded on the detail page when needed.
+        randomSeed: "",
+        description,
+        creatorRole,
+        sponsorMode,
+        rewardType: "",
+        rewardLabel: "",
+        rewardAmount: "",
+        rewardCurrency: "",
+        accessExpiry: 0n,
+      });
 
-    if (prolly) {
-      result.push(prolly);
+      void client;
+    } catch (error) {
+      console.error(
+        `Failed to load Prolly ${id.toString()} from GenLayer:`,
+        error,
+      );
     }
   }
 
