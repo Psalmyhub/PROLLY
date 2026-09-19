@@ -13,7 +13,8 @@ import type {
 } from "genlayer-js/types";
 
 export const PROLLY_CONTRACT_ADDRESS =
-  "0x379a8448b39926AB82DFe428F02A44cD9A2544c6" as Address;
+  (process.env.NEXT_PUBLIC_PROLLY_CONTRACT_ADDRESS ||
+    "0xFAFA753b809B1293E2660086215634FA15Cd8E15") as Address;
 
 export const PROLLY_CONTRACT_OWNER =
   (process.env.NEXT_PUBLIC_PROLLY_CONTRACT_OWNER ||
