@@ -31,6 +31,14 @@ export type OnChainProlly = {
   closed: boolean;
   winnersFinalized: boolean;
   randomSeed: string;
+  description: string;
+  creatorRole: string;
+  sponsorMode: string;
+  rewardType: string;
+  rewardLabel: string;
+  rewardAmount: string;
+  rewardCurrency: string;
+  accessExpiry: bigint;
 };
 
 export type SponsorOnChainProlly = {
@@ -406,6 +414,61 @@ export async function claimReward(
 
   await waitForTransaction(String(hash));
 
+  return String(hash);
+}
+
+export async function getWalletByUsername(
+  username: string,
+): Promise<Address | null> {
+  const client = getReadClient();
+  const normalized = username.trim().replace(/^@/, "").toLowerCase();
+
+  if (!normalized) return null;
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_wallet_by_username",
+    args: [normalized],
+  });
+
+  const wallet = asString(result);
+  return wallet ? (wallet as Address) : null;
+}
+
+export async function getMyProfile(
+  account: Address,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_profile",
+    args: [account],
+  });
+
+  return asString(result);
+}
+
+export async function registerProfile(
+  account: Address,
+  username: string,
+): Promise<string> {
+  const cleanUsername = username.trim().replace(/^@/, "");
+
+  if (!cleanUsername) {
+    throw new Error("Username is required.");
+  }
+
+  const client = await getWriteClient(account);
+
+  const hash = await client.writeContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "register_profile",
+    args: [cleanUsername],
+    value: 0n,
+  });
+
+  await waitForTransaction(String(hash));
   return String(hash);
 }
 
@@ -919,21 +982,71 @@ export async function getOnChainProlly(
   const id = BigInt(prollyId);
 
   try {
+    const client = getReadClient();
+
     const [
       name,
+      description,
       entryFee,
       maxParticipants,
       winnerCount,
       participantCount,
+      creatorRole,
+      sponsorMode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      accessExpiry,
       closed,
       winnersFinalized,
       randomSeed,
     ] = await Promise.all([
       getName(id),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_description",
+        args: [id],
+      }).then(asString),
       getEntryFee(id),
       getMaxParticipants(id),
       getWinnerCount(id),
       getParticipantCount(id),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_creator_role",
+        args: [id],
+      }).then(asString),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_sponsor_mode",
+        args: [id],
+      }).then(asString),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_reward_type",
+        args: [id],
+      }).then(asString),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_reward_label",
+        args: [id],
+      }).then(asString),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_reward_amount",
+        args: [id],
+      }).then(asString),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_reward_currency",
+        args: [id],
+      }).then(asString),
+      client.readContract({
+        address: PROLLY_CONTRACT_ADDRESS,
+        functionName: "get_access_expiry",
+        args: [id],
+      }).then(asBigInt),
       isClosed(id),
       areWinnersFinalized(id),
       getRandomSeed(id),
@@ -949,6 +1062,14 @@ export async function getOnChainProlly(
       closed,
       winnersFinalized,
       randomSeed,
+      description,
+      creatorRole,
+      sponsorMode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      accessExpiry,
     };
   } catch (error) {
     console.error(
