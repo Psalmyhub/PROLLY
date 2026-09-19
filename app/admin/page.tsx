@@ -260,7 +260,7 @@ export default function AdminPage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-zinc-950 text-white">
+      <main className="min-h-screen bg-zinc-950 px-3 text-white sm:px-0">
         <div className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-6">
           <p className="text-zinc-400">
             Loading...
@@ -557,7 +557,7 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-white">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
           <Link
             href="/"
             className="text-2xl font-bold tracking-tight"
@@ -589,13 +589,13 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <section className="mx-auto max-w-7xl px-6 py-12">
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12">
         <div>
           <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
             Admin Dashboard
           </p>
 
-          <h1 className="mt-4 text-4xl font-bold sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-bold sm:text-5xl">
             Manage your Prollys.
           </h1>
 
@@ -746,7 +746,7 @@ export default function AdminPage() {
 
                       {application.status ===
                         "pending" && (
-                        <div className="flex shrink-0 gap-2">
+                        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
                           {application.status === "pending" ? (
                             <>
                               <button onClick={() => handleSponsorDecision(application.walletAddress, "approved")} className="rounded-full bg-green-500 px-5 py-2 text-sm font-semibold text-black hover:bg-green-400">Approve Sponsor</button>
