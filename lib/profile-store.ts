@@ -45,6 +45,12 @@ export function loadProfile(walletAddress:string):UserProfile|null{
   }catch{localStorage.removeItem(profileStorageKey(walletAddress));return null;}
 }
 
-export function saveProfile(walletAddress:string,profile:UserProfile){
-  localStorage.setItem(profileStorageKey(walletAddress),JSON.stringify(profile));
+export function saveProfile(walletAddress: string, profile: UserProfile) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(profileStorageKey(walletAddress), JSON.stringify(profile));
+}
+
+export function getProfileDisplayName(walletAddress: string): string {
+  const profile = loadProfile(walletAddress);
+  return profile?.username?.trim() || `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
 }
