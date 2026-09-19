@@ -376,9 +376,9 @@ export default function ProllyDetailsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-zinc-950 px-3 text-white sm:px-0">
       <nav className="border-b border-zinc-800">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
           <Link href="/" className="text-2xl font-bold tracking-tight">
             PROLLY<span className="text-violet-400">.</span>
           </Link>
