@@ -45,13 +45,6 @@ function getLocalMetadata(onChain: OnChainProlly, localProllys: Prolly[]): Proll
       maxParticipants: Number(onChain.maxParticipants),
       winners: Number(onChain.winnerCount),
       participants: Number(onChain.participantCount),
-      sponsorRewardType: isSponsor ? onChain.rewardType : existing.sponsorRewardType,
-      sponsorRewardLabel: isSponsor ? onChain.rewardLabel : existing.sponsorRewardLabel,
-      sponsorRewardAmount: isSponsor ? onChain.rewardAmount : existing.sponsorRewardAmount,
-      sponsorRewardCurrency: isSponsor ? onChain.rewardCurrency : existing.sponsorRewardCurrency,
-      sponsorExpiresAt: isSponsor && onChain.accessExpiry > 0n
-        ? Number(onChain.accessExpiry) * 1000
-        : existing.sponsorExpiresAt,
     };
   }
 
@@ -69,13 +62,6 @@ function getLocalMetadata(onChain: OnChainProlly, localProllys: Prolly[]): Proll
     closingMode: "participants",
     createdAt: Date.now(),
     sponsorCategory: isSponsor ? onChain.sponsorMode : undefined,
-    sponsorRewardType: isSponsor ? onChain.rewardType as Prolly["sponsorRewardType"] : undefined,
-    sponsorRewardLabel: isSponsor ? onChain.rewardLabel : undefined,
-    sponsorRewardAmount: isSponsor ? onChain.rewardAmount : undefined,
-    sponsorRewardCurrency: isSponsor ? onChain.rewardCurrency : undefined,
-    sponsorExpiresAt: isSponsor && onChain.accessExpiry > 0n
-      ? Number(onChain.accessExpiry) * 1000
-      : undefined,
   };
 }
 function getPostType(prolly: Prolly): "manual" | "link" | "admin" {
