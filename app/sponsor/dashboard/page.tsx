@@ -100,9 +100,12 @@ export default function SponsorDashboard() {
       return setMessage("Choose an access-link expiration time.");
     }
 
-    const expiry = type === "link" ? toTimestamp(expiresAt) : undefined;
-    if (type === "link" && (!expiry || expiry <= Date.now())) {
-      return setMessage("Access expiration must be in the future.");
+    const expiry =
+      type === "link" && expiresAt
+        ? Date.now() + Number(expiresAt) * 60 * 1000
+        : undefined;
+    if (type === "link" && (!expiry || expiry <= Date.now() || Number(expiresAt) > 60)) {
+      return setMessage("Choose an access expiration between 15 minutes and 1 hour.");
     }
 
     const campaign: SponsorCampaign = {
@@ -238,8 +241,14 @@ export default function SponsorDashboard() {
             {type === "link" ? (
               <>
                 <label className="mt-5 block text-sm">Access link expires</label>
-                <input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" />
-                <p className="mt-2 text-xs leading-5 text-zinc-500">The link is generated immediately when you publish. Once published, it remains active until this expiration time. No start time is required.</p>
+                <select value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3">
+                  <option value="">Select expiration</option>
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="45">45 minutes</option>
+                  <option value="60">1 hour</option>
+                </select>
+                <p className="mt-2 text-xs leading-5 text-zinc-500">The link is generated immediately when you publish and can remain active for a maximum of 1 hour. No start time is required.</p>
 
                 <label className="mt-5 block text-sm">Community / contact links</label>
                 <textarea value={community} onChange={(e) => setCommunity(e.target.value)} rows={4} placeholder={"Telegram | https://t.me/yourcommunity\nDiscord | https://discord.gg/yourcommunity\nX | https://x.com/yourpost"} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3" />
