@@ -8,6 +8,7 @@ import {
   getAllOnChainProllys,
   getParticipants,
   getWinners,
+  registerProfile,
   type OnChainProlly,
 } from "@/lib/genlayer";
 import { loadProllys, type Prolly } from "@/lib/prolly-store";
@@ -205,7 +206,7 @@ export default function ProfilePage() {
     };
   }, [address, favoriteIds]);
 
-  function handleSave() {
+  async function handleSave() {
     if (!address) {
       setMessage("Connect your wallet before setting a username.");
       return;
@@ -235,23 +236,30 @@ export default function ProfilePage() {
       return;
     }
 
-    const now = Date.now();
+    try {
+      await registerProfile(address, cleanUsername);
 
-    const updatedProfile: UserProfile = {
-      username: cleanUsername,
-      bio: bio.trim(),
-      website: website.trim(),
-      telegram: telegram.trim(),
-      discord: discord.trim(),
-      twitter: twitter.trim(),
-      createdAt: profile?.createdAt ?? now,
-      updatedAt: now,
-    };
+      const now = Date.now();
+      const updatedProfile: UserProfile = {
+        username: cleanUsername,
+        bio: bio.trim(),
+        website: website.trim(),
+        telegram: telegram.trim(),
+        discord: discord.trim(),
+        twitter: twitter.trim(),
+        createdAt: profile?.createdAt ?? now,
+        updatedAt: now,
+      };
 
-    saveProfile(address, updatedProfile);
-    setProfile(updatedProfile);
-    setUsername(cleanUsername);
-    setMessage("Profile saved successfully.");
+      saveProfile(address, updatedProfile);
+      setProfile(updatedProfile);
+      setUsername(cleanUsername);
+      setMessage("Profile saved on GenLayer successfully.");
+    } catch (error) {
+      setMessage(
+        `Profile save failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   const joinedCount = participations.length;
