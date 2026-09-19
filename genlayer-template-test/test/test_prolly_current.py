@@ -1006,3 +1006,159 @@ def test_claimed_state_starts_false(setup):
         prolly_id,
         winner,
     ) is False
+
+
+def test_admin_winner_can_claim_reward(setup):
+    vm, contract, owner, alice, bob, *_ = setup
+
+    prolly_id = fill_admin_prolly(
+        vm,
+        contract,
+        owner,
+        [alice, bob],
+        entry_fee=100,
+        winner_count=1,
+    )
+
+    vm.sender = alice
+    contract.finalize_winners(prolly_id)
+
+    winner = contract.get_winner(
+        prolly_id,
+        0,
+    )
+
+    assert winner != ""
+    assert contract.get_prize_pool(prolly_id) == 190
+    assert contract.get_prize_per_winner(prolly_id) == 190
+
+    # Fund the contract so the real payout path can execute.
+    vm.deal(vm._contract_address, 190)
+
+    assert contract.is_reward_claimed(
+        prolly_id,
+        winner,
+    ) is False
+
+    winner_address = None
+
+    for participant in [alice, bob]:
+        if address_string(participant).lower() == winner.lower():
+            winner_address = participant
+            break
+
+    assert winner_address is not None
+
+    vm.sender = winner_address
+
+    contract.claim_reward(prolly_id)
+
+    assert contract.is_reward_claimed(
+        prolly_id,
+        winner,
+    ) is True
+
+
+def test_admin_winner_cannot_claim_reward_twice(setup):
+    vm, contract, owner, alice, bob, *_ = setup
+
+    prolly_id = fill_admin_prolly(
+        vm,
+        contract,
+        owner,
+        [alice, bob],
+        entry_fee=100,
+        winner_count=1,
+    )
+
+    vm.sender = alice
+    contract.finalize_winners(prolly_id)
+
+    winner = contract.get_winner(
+        prolly_id,
+        0,
+    )
+
+    winner_address = None
+
+    for participant in [alice, bob]:
+        if address_string(participant).lower() == winner.lower():
+            winner_address = participant
+            break
+
+    assert winner_address is not None
+
+    vm.deal(vm._contract_address, 190)
+
+    vm.sender = winner_address
+
+    contract.claim_reward(prolly_id)
+
+    assert contract.is_reward_claimed(
+        prolly_id,
+        winner,
+    ) is True
+
+    with pytest.raises(Exception):
+        contract.claim_reward(prolly_id)
+
+
+def test_all_selected_admin_winners_can_claim_once(setup):
+    vm, contract, owner, alice, bob, *_ = setup
+
+    prolly_id = fill_admin_prolly(
+        vm,
+        contract,
+        owner,
+        [alice, bob],
+        entry_fee=100,
+        winner_count=2,
+    )
+
+    vm.sender = alice
+    contract.finalize_winners(prolly_id)
+
+    assert contract.get_prize_pool(prolly_id) == 190
+    assert contract.get_prize_per_winner(prolly_id) == 95
+
+    winner_one = contract.get_winner(
+        prolly_id,
+        0,
+    )
+
+    winner_two = contract.get_winner(
+        prolly_id,
+        1,
+    )
+
+    assert winner_one != ""
+    assert winner_two != ""
+    assert winner_one.lower() != winner_two.lower()
+
+    vm.deal(vm._contract_address, 190)
+
+    participants = [alice, bob]
+
+    for winner_index, winner in enumerate(
+        [winner_one, winner_two]
+    ):
+        winner_address = None
+
+        for participant in participants:
+            if address_string(participant).lower() == winner.lower():
+                winner_address = participant
+                break
+
+        assert winner_address is not None
+
+        vm.sender = winner_address
+
+        contract.claim_reward(prolly_id)
+
+        assert contract.is_reward_claimed(
+            prolly_id,
+            winner,
+        ) is True
+
+        with pytest.raises(Exception):
+            contract.claim_reward(prolly_id)

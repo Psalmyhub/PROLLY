@@ -33,8 +33,28 @@ export type OnChainProlly = {
   randomSeed: string;
 };
 
+export type SponsorOnChainProlly = {
+  id: bigint;
+  name: string;
+  description: string;
+  mode: string;
+  rewardType: string;
+  rewardLabel: string;
+  rewardAmount: string;
+  rewardCurrency: string;
+  maxParticipants: bigint;
+  winnerCount: bigint;
+  participantCount: bigint;
+  closed: boolean;
+  winnersFinalized: boolean;
+  accessExpiry: bigint;
+};
+
 type Eip1193Provider = {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  request(args: {
+    method: string;
+    params?: unknown[];
+  }): Promise<unknown>;
 };
 
 type WindowWithEthereum = Window & {
@@ -371,6 +391,303 @@ export async function finalizeWinners(
   return String(hash);
 }
 
+export async function claimReward(
+  account: Address,
+  prollyId: bigint | string | number,
+) {
+  const client = await getWriteClient(account);
+
+  const hash = await client.writeContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "claim_reward",
+    args: [BigInt(prollyId)],
+    value: 0n,
+  });
+
+  await waitForTransaction(String(hash));
+
+  return String(hash);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sponsor Prolly                                                              */
+/* -------------------------------------------------------------------------- */
+
+export async function getSponsorFeeGen(): Promise<bigint> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_sponsor_fee_gen",
+    args: [],
+  });
+
+  return asBigInt(result);
+}
+
+export type CreateSponsorProllyParams = {
+  account: Address;
+  name: string;
+  description: string;
+  mode: "link" | "manual";
+  rewardType: "xp" | "crypto" | "fun" | "other";
+  rewardLabel: string;
+  rewardAmount: string;
+  rewardCurrency: string;
+  maxParticipants: bigint;
+  winnerCount: bigint;
+  lifetimeSeconds: bigint;
+  accessToken: string;
+  participantCsv: string;
+};
+
+export async function createSponsorProlly(
+  params: CreateSponsorProllyParams,
+): Promise<{ prollyId: bigint; hash: string }> {
+  const {
+    account,
+    name,
+    description,
+    mode,
+    rewardType,
+    rewardLabel,
+    rewardAmount,
+    rewardCurrency,
+    maxParticipants,
+    winnerCount,
+    lifetimeSeconds,
+    accessToken,
+    participantCsv,
+  } = params;
+
+  const client = await getWriteClient(account);
+  const sponsorFee = await getSponsorFeeGen();
+
+  const hash = await client.writeContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "create_sponsor_prolly",
+    args: [
+      name,
+      description,
+      mode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      maxParticipants,
+      winnerCount,
+      lifetimeSeconds,
+      accessToken,
+      participantCsv,
+    ],
+    value: sponsorFee,
+  });
+
+  const receipt = await waitForTransaction(String(hash));
+  const returnedId = extractReturnedId(receipt);
+
+  const prollyId =
+    returnedId ?? (await findCreatedProllyId(name));
+
+  if (prollyId === null) {
+    throw new Error(
+      "Sponsor Prolly creation succeeded, but its GenLayer ID could not be read.",
+    );
+  }
+
+  return {
+    prollyId,
+    hash: String(hash),
+  };
+}
+
+export async function joinSponsorLink(
+  account: Address,
+  prollyId: bigint | string | number,
+  accessToken: string,
+) {
+  const client = await getWriteClient(account);
+
+  const hash = await client.writeContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "join_sponsor_link",
+    args: [
+      BigInt(prollyId),
+      account,
+      accessToken,
+    ],
+    value: 0n,
+  });
+
+  await waitForTransaction(String(hash));
+
+  return String(hash);
+}
+
+export async function getDescription(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_description",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result);
+}
+
+export async function getSponsorMode(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_sponsor_mode",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result).toLowerCase();
+}
+
+export async function getRewardType(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_reward_type",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result).toLowerCase();
+}
+
+export async function getRewardLabel(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_reward_label",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result);
+}
+
+export async function getRewardAmount(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_reward_amount",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result);
+}
+
+export async function getRewardCurrency(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_reward_currency",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result);
+}
+
+export async function getAccessExpiry(
+  prollyId: bigint | string | number,
+): Promise<bigint> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_access_expiry",
+    args: [BigInt(prollyId)],
+  });
+
+  return asBigInt(result);
+}
+
+export async function getSponsorOnChainProlly(
+  prollyId: bigint | string | number,
+): Promise<SponsorOnChainProlly | null> {
+  const id = BigInt(prollyId);
+
+  try {
+    const [
+      name,
+      description,
+      mode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      maxParticipants,
+      winnerCount,
+      participantCount,
+      closed,
+      winnersFinalized,
+      accessExpiry,
+    ] = await Promise.all([
+      getName(id),
+      getDescription(id),
+      getSponsorMode(id),
+      getRewardType(id),
+      getRewardLabel(id),
+      getRewardAmount(id),
+      getRewardCurrency(id),
+      getMaxParticipants(id),
+      getWinnerCount(id),
+      getParticipantCount(id),
+      isClosed(id),
+      areWinnersFinalized(id),
+      getAccessExpiry(id),
+    ]);
+
+    return {
+      id,
+      name,
+      description,
+      mode,
+      rewardType,
+      rewardLabel,
+      rewardAmount,
+      rewardCurrency,
+      maxParticipants,
+      winnerCount,
+      participantCount,
+      closed,
+      winnersFinalized,
+      accessExpiry,
+    };
+  } catch (error) {
+    console.error(
+      `Failed to load Sponsor Prolly ${id.toString()}:`,
+      error,
+    );
+
+    return null;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Participants and winners                                                   */
+/* -------------------------------------------------------------------------- */
+
 export async function getParticipant(
   prollyId: bigint | string | number,
   index: bigint | string | number,
@@ -534,6 +851,63 @@ export async function areWinnersFinalized(
     address: PROLLY_CONTRACT_ADDRESS,
     functionName: "are_winners_finalized",
     args: [BigInt(prollyId)],
+  });
+
+  return asBoolean(result);
+}
+
+export async function getCreatorRole(
+  prollyId: bigint | string | number,
+): Promise<string> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_creator_role",
+    args: [BigInt(prollyId)],
+  });
+
+  return asString(result).toLowerCase();
+}
+
+export async function getPrizePool(
+  prollyId: bigint | string | number,
+): Promise<bigint> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_prize_pool",
+    args: [BigInt(prollyId)],
+  });
+
+  return asBigInt(result);
+}
+
+export async function getPrizePerWinner(
+  prollyId: bigint | string | number,
+): Promise<bigint> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "get_prize_per_winner",
+    args: [BigInt(prollyId)],
+  });
+
+  return asBigInt(result);
+}
+
+export async function isRewardClaimed(
+  prollyId: bigint | string | number,
+  participant: Address,
+): Promise<boolean> {
+  const client = getReadClient();
+
+  const result = await client.readContract({
+    address: PROLLY_CONTRACT_ADDRESS,
+    functionName: "is_reward_claimed",
+    args: [BigInt(prollyId), participant],
   });
 
   return asBoolean(result);

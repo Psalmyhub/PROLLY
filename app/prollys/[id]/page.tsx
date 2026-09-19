@@ -4,13 +4,19 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount, useConnect } from "wagmi";
+import type { Address } from "viem";
 
 import {
+  claimReward,
   finalizeWinners,
+  getCreatorRole,
   getOnChainProlly,
+  getPrizePerWinner,
+  getPrizePool,
   getRandomSeed,
   getWinners,
   hasJoinedProlly,
+  isRewardClaimed,
   joinProlly as joinOnChainProlly,
   type OnChainProlly,
 } from "@/lib/genlayer";
@@ -22,7 +28,11 @@ import {
 } from "@/lib/prolly-store";
 
 import { loadProfile } from "@/lib/profile-store";
-import { calculateProllyEconomics, formatBpsAsPercent, formatGenAmount } from "@/lib/economics";
+import {
+  calculateProllyEconomics,
+  formatBpsAsPercent,
+  formatGenAmount,
+} from "@/lib/economics";
 
 function formatGen(value: bigint): string {
   const whole = value / BigInt("1000000000000000000");
@@ -80,8 +90,10 @@ function usernameForWinner(
   prolly: Prolly | null,
 ): string {
   const normalized = walletAddress.toLowerCase();
+
   const participant = (prolly?.participantList ?? []).find(
-    (item) => item.walletAddress?.toLowerCase() === normalized,
+    (item) =>
+      item.walletAddress?.toLowerCase() === normalized,
   );
 
   if (participant?.username) {
@@ -89,6 +101,7 @@ function usernameForWinner(
   }
 
   const profile = loadProfile(walletAddress);
+
   if (profile?.username) {
     return profile.username;
   }
@@ -98,7 +111,9 @@ function usernameForWinner(
 
 export default function ProllyDetailsPage() {
   const params = useParams();
+
   const { address, isConnected } = useAccount();
+
   const {
     connect,
     connectors,
@@ -114,11 +129,47 @@ export default function ProllyDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+
+  const [creatorRole, setCreatorRole] = useState<string>("");
+  const [prizePool, setPrizePool] = useState<bigint>(0n);
+  const [prizePerWinner, setPrizePerWinner] =
+    useState<bigint>(0n);
+  const [rewardClaimed, setRewardClaimed] =
+    useState(false);
+
   const [randomSeed, setRandomSeed] = useState<string>("");
-  const [winnerAddresses, setWinnerAddresses] = useState<string[]>([]);
+  const [winnerAddresses, setWinnerAddresses] =
+    useState<string[]>([]);
+
   const [error, setError] = useState<string | null>(null);
 
-  const economics = onChain ? calculateProllyEconomics(onChain.entryFee, onChain.participantCount, onChain.maxParticipants, onChain.winnerCount) : null;
+  const economics = onChain
+    ? calculateProllyEconomics(
+        onChain.entryFee,
+        onChain.participantCount,
+        onChain.maxParticipants,
+        onChain.winnerCount,
+      )
+    : null;
+
+  const isAdminProlly = creatorRole === "admin";
+
+  const connectedWalletIsWinner = Boolean(
+    address &&
+      winnerAddresses.some(
+        (winner) =>
+          winner.toLowerCase() === address.toLowerCase(),
+      ),
+  );
+
+  const canClaimReward =
+    isAdminProlly &&
+    !!onChain?.winnersFinalized &&
+    !!address &&
+    connectedWalletIsWinner &&
+    !rewardClaimed &&
+    prizePerWinner > 0n;
 
   useEffect(() => {
     setMounted(true);
@@ -132,6 +183,7 @@ export default function ProllyDetailsPage() {
       setError(null);
 
       const numericId = BigInt(id);
+
       const chainData = await getOnChainProlly(numericId);
 
       if (!chainData) {
@@ -142,14 +194,36 @@ export default function ProllyDetailsPage() {
 
       setOnChain(chainData);
 
+      const [
+        role,
+        pool,
+        perWinner,
+      ] = await Promise.all([
+        getCreatorRole(numericId),
+        getPrizePool(numericId),
+        getPrizePerWinner(numericId),
+      ]);
+
+      setCreatorRole(role);
+      setPrizePool(pool);
+      setPrizePerWinner(perWinner);
+
       const localProllys = loadProllys();
-      const metadata = getLocalMetadata(chainData, localProllys);
+
+      const metadata = getLocalMetadata(
+        chainData,
+        localProllys,
+      );
+
       setProlly(metadata);
 
       const updatedLocal = [
-        ...localProllys.filter((item) => item.onChainId !== id),
+        ...localProllys.filter(
+          (item) => item.onChainId !== id,
+        ),
         metadata,
       ];
+
       saveProllys(updatedLocal);
 
       if (address) {
@@ -157,29 +231,55 @@ export default function ProllyDetailsPage() {
           numericId.toString(),
           address,
         );
+
         setJoined(walletJoined);
       } else {
         setJoined(false);
       }
 
       if (chainData.closed) {
-        const seed = await getRandomSeed(numericId.toString());
+        const seed = await getRandomSeed(
+          numericId.toString(),
+        );
+
         setRandomSeed(seed);
 
         if (chainData.winnersFinalized) {
-          const winners = await getWinners(numericId.toString());
+          const winners = await getWinners(
+            numericId.toString(),
+          );
+
           setWinnerAddresses(winners);
+
+          if (address && role === "admin") {
+            const claimed = await isRewardClaimed(
+              numericId.toString(),
+              address,
+            );
+
+            setRewardClaimed(claimed);
+          } else {
+            setRewardClaimed(false);
+          }
         } else {
           setWinnerAddresses([]);
+          setRewardClaimed(false);
         }
       } else {
         setRandomSeed("");
         setWinnerAddresses([]);
+        setRewardClaimed(false);
       }
     } catch (loadError) {
-      console.error("Failed to load Prolly from GenLayer:", loadError);
+      console.error(
+        "Failed to load Prolly from GenLayer:",
+        loadError,
+      );
+
       setError(
-        loadError instanceof Error ? loadError.message : String(loadError),
+        loadError instanceof Error
+          ? loadError.message
+          : String(loadError),
       );
     } finally {
       setLoading(false);
@@ -188,6 +288,7 @@ export default function ProllyDetailsPage() {
 
   useEffect(() => {
     loadData();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, address, id]);
 
@@ -198,10 +299,18 @@ export default function ProllyDetailsPage() {
       setFinalizing(true);
       setError(null);
 
-      await finalizeWinners(address, onChain.id.toString());
+      await finalizeWinners(
+        address,
+        onChain.id.toString(),
+      );
+
       await loadData();
     } catch (finalizeError) {
-      console.error("GenLayer winner finalization failed:", finalizeError);
+      console.error(
+        "GenLayer winner finalization failed:",
+        finalizeError,
+      );
+
       setError(
         finalizeError instanceof Error
           ? finalizeError.message
@@ -212,20 +321,63 @@ export default function ProllyDetailsPage() {
     }
   }
 
+  async function handleClaimReward() {
+    if (
+      claiming ||
+      !address ||
+      !onChain ||
+      !canClaimReward
+    ) {
+      return;
+    }
+
+    try {
+      setClaiming(true);
+      setError(null);
+
+      await claimReward(
+        address as Address,
+        onChain.id.toString(),
+      );
+
+      setRewardClaimed(true);
+
+      await loadData();
+    } catch (claimError) {
+      console.error(
+        "Admin Prolly reward claim failed:",
+        claimError,
+      );
+
+      setError(
+        claimError instanceof Error
+          ? claimError.message
+          : String(claimError),
+      );
+    } finally {
+      setClaiming(false);
+    }
+  }
+
   async function handleJoin() {
     if (joining || isConnecting) return;
 
     if (!isConnected || !address) {
       const metaMaskConnector =
         connectors.find((connector) =>
-          connector.name.toLowerCase().includes("metamask"),
+          connector.name
+            .toLowerCase()
+            .includes("metamask"),
         ) ??
-        connectors.find((connector) => connector.type === "injected");
+        connectors.find(
+          (connector) => connector.type === "injected",
+        );
 
       if (!metaMaskConnector) {
         alert(
           "MetaMask connector not found. Please make sure MetaMask is installed and unlocked.",
         );
+
         return;
       }
 
@@ -233,8 +385,13 @@ export default function ProllyDetailsPage() {
         { connector: metaMaskConnector },
         {
           onSuccess: () => void loadData(),
+
           onError: (connectError) => {
-            console.error("Wallet connection failed:", connectError);
+            console.error(
+              "Wallet connection failed:",
+              connectError,
+            );
+
             alert(
               `Wallet connection failed: ${
                 connectError instanceof Error
@@ -245,11 +402,15 @@ export default function ProllyDetailsPage() {
           },
         },
       );
+
       return;
     }
 
     if (!onChain) {
-      alert("This Prolly could not be found on GenLayer.");
+      alert(
+        "This Prolly could not be found on GenLayer.",
+      );
+
       return;
     }
 
@@ -258,13 +419,19 @@ export default function ProllyDetailsPage() {
       return;
     }
 
-    if (onChain.participantCount >= onChain.maxParticipants) {
+    if (
+      onChain.participantCount >=
+      onChain.maxParticipants
+    ) {
       alert("This Prolly is full.");
       return;
     }
 
     if (joined) {
-      alert("This wallet has already joined this Prolly.");
+      alert(
+        "This wallet has already joined this Prolly.",
+      );
+
       return;
     }
 
@@ -278,7 +445,9 @@ export default function ProllyDetailsPage() {
       const payment = onChain.entryFee;
 
       alert(
-        `Joining with ${formatGen(payment)} GEN. Please confirm the GenLayer transaction in MetaMask.`,
+        `Joining with ${formatGen(
+          payment,
+        )} GEN. Please confirm the GenLayer transaction in MetaMask.`,
       );
 
       await joinOnChainProlly(
@@ -287,13 +456,21 @@ export default function ProllyDetailsPage() {
         payment,
       );
 
-      alert("Join transaction submitted successfully on GenLayer.");
+      alert(
+        "Join transaction submitted successfully on GenLayer.",
+      );
+
       await loadData();
     } catch (joinError) {
-      console.error("GenLayer join failed:", joinError);
+      console.error(
+        "GenLayer join failed:",
+        joinError,
+      );
 
       const message =
-        joinError instanceof Error ? joinError.message : String(joinError);
+        joinError instanceof Error
+          ? joinError.message
+          : String(joinError);
 
       alert(`Join failed: ${message}`);
     } finally {
@@ -301,18 +478,34 @@ export default function ProllyDetailsPage() {
     }
   }
 
-  const participantCount = onChain ? Number(onChain.participantCount) : 0;
-  const maxParticipants = onChain ? Number(onChain.maxParticipants) : 0;
+  const participantCount = onChain
+    ? Number(onChain.participantCount)
+    : 0;
+
+  const maxParticipants = onChain
+    ? Number(onChain.maxParticipants)
+    : 0;
 
   const progress =
     maxParticipants > 0
-      ? Math.min((participantCount / maxParticipants) * 100, 100)
+      ? Math.min(
+          (participantCount / maxParticipants) * 100,
+          100,
+        )
       : 0;
 
   const status = useMemo(() => {
     if (!onChain) return "NOT FOUND";
+
     if (onChain.closed) return "CLOSED";
-    if (onChain.participantCount >= onChain.maxParticipants) return "FULL";
+
+    if (
+      onChain.participantCount >=
+      onChain.maxParticipants
+    ) {
+      return "FULL";
+    }
+
     return "LIVE";
   }, [onChain]);
 
@@ -320,20 +513,29 @@ export default function ProllyDetailsPage() {
     () =>
       winnerAddresses.map((winner) => ({
         address: winner,
-        username: usernameForWinner(winner, prolly),
+        username: usernameForWinner(
+          winner,
+          prolly,
+        ),
       })),
     [winnerAddresses, prolly],
   );
 
-  const liveBattleAvailable = joined && !!onChain?.winnersFinalized;
-  const replayAvailable = !!onChain?.winnersFinalized && !joined;
+  const liveBattleAvailable =
+    joined && !!onChain?.winnersFinalized;
+
+  const replayAvailable =
+    !!onChain?.winnersFinalized && !joined;
 
   if (!mounted || loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-violet-400" />
-          <p className="mt-5 text-zinc-400">Loading Prolly from GenLayer...</p>
+
+          <p className="mt-5 text-zinc-400">
+            Loading Prolly from GenLayer...
+          </p>
         </div>
       </main>
     );
@@ -343,8 +545,14 @@ export default function ProllyDetailsPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
         <div className="max-w-lg text-center">
-          <h1 className="text-4xl font-bold">Prolly not found</h1>
-          <p className="mt-4 text-zinc-500">{error}</p>
+          <h1 className="text-4xl font-bold">
+            Prolly not found
+          </h1>
+
+          <p className="mt-4 text-zinc-500">
+            {error}
+          </p>
+
           <Link
             href="/prollys"
             className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold hover:bg-violet-400"
@@ -360,10 +568,14 @@ export default function ProllyDetailsPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-white">
         <div className="max-w-lg text-center">
-          <h1 className="text-4xl font-bold">Prolly not found</h1>
+          <h1 className="text-4xl font-bold">
+            Prolly not found
+          </h1>
+
           <p className="mt-4 text-zinc-500">
             This Prolly does not exist on GenLayer.
           </p>
+
           <Link
             href="/prollys"
             className="mt-6 inline-block rounded-full bg-violet-500 px-6 py-3 font-semibold hover:bg-violet-400"
@@ -379,9 +591,14 @@ export default function ProllyDetailsPage() {
     <main className="min-h-screen bg-zinc-950 px-3 text-white sm:px-0">
       <nav className="border-b border-zinc-800">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 sm:py-6">
-          <Link href="/" className="text-2xl font-bold tracking-tight">
-            PROLLY<span className="text-violet-400">.</span>
+          <Link
+            href="/"
+            className="text-2xl font-bold tracking-tight"
+          >
+            PROLLY
+            <span className="text-violet-400">.</span>
           </Link>
+
           <Link
             href="/prollys"
             className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-medium hover:bg-zinc-800"
@@ -398,8 +615,14 @@ export default function ProllyDetailsPage() {
               <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-violet-500/10 text-4xl">
                 🎲
               </div>
-              <p className="mt-5 text-sm text-zinc-500">Prolly image</p>
-              <p className="mt-2 text-xs text-zinc-600">Image can be added later</p>
+
+              <p className="mt-5 text-sm text-zinc-500">
+                Prolly image
+              </p>
+
+              <p className="mt-2 text-xs text-zinc-600">
+                Image can be added later
+              </p>
             </div>
           </div>
 
@@ -416,9 +639,19 @@ export default function ProllyDetailsPage() {
               >
                 {status}
               </span>
+
+              <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
+                {isAdminProlly
+                  ? "ADMIN PROLLY"
+                  : creatorRole
+                    ? "SPONSOR PROLLY"
+                    : "PROLLY"}
+              </span>
+
               <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-300">
                 On-chain #{id}
               </span>
+
               <span className="text-sm text-zinc-500">
                 {participantCount}/{maxParticipants} joined
               </span>
@@ -435,78 +668,241 @@ export default function ProllyDetailsPage() {
 
             {onChain.closed && (
               <div className="mt-7 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Selection state</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
+                  Selection state
+                </p>
+
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs text-zinc-500">Pool</p>
-                    <p className="mt-1 font-semibold">Frozen</p>
+                    <p className="text-xs text-zinc-500">
+                      Pool
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                      Frozen
+                    </p>
                   </div>
+
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs text-zinc-500">GenLayer</p>
-                    <p className="mt-1 font-semibold">{onChain.winnersFinalized ? "Finalized" : "Awaiting authorization"}</p>
+                    <p className="text-xs text-zinc-500">
+                      GenLayer
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                      {onChain.winnersFinalized
+                        ? "Finalized"
+                        : "Awaiting authorization"}
+                    </p>
                   </div>
+
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4">
-                    <p className="text-xs text-zinc-500">Battle</p>
-                    <p className="mt-1 font-semibold">{onChain.winnersFinalized && randomSeed ? "Ready" : "Not ready"}</p>
+                    <p className="text-xs text-zinc-500">
+                      Battle
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                      {onChain.winnersFinalized &&
+                      randomSeed
+                        ? "Ready"
+                        : "Not ready"}
+                    </p>
                   </div>
                 </div>
-                <p className="mt-4 text-xs leading-5 text-zinc-600">The Battle only reveals the finalized on-chain winner set. It never creates, changes, or re-runs winner selection.</p>
+
+                <p className="mt-4 text-xs leading-5 text-zinc-600">
+                  The Battle only reveals the finalized
+                  on-chain winner set. It never creates,
+                  changes, or re-runs winner selection.
+                </p>
               </div>
             )}
 
             <div className="mt-7">
               <div className="flex justify-between text-sm">
-                <span className="text-zinc-500">Participation</span>
+                <span className="text-zinc-500">
+                  Participation
+                </span>
+
                 <span className="text-zinc-300">
                   {participantCount} / {maxParticipants}
                 </span>
               </div>
+
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800">
                 <div
                   className="h-full rounded-full bg-violet-500"
-                  style={{ width: `${progress}%` }}
+                  style={{
+                    width: `${progress}%`,
+                  }}
                 />
               </div>
             </div>
 
-          <section className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
-            <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">Economics</p>
-            <h2 className="mt-2 text-2xl font-bold">Transparent pool</h2>
-            <p className="mt-2 text-sm text-zinc-500">Every participant pays the same entry fee. Payment amount does not change winner probability.</p>
-            {economics && (
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Entry fee</p><p className="mt-2 text-xl font-bold">{formatGenAmount(economics.entryFee)} GEN</p></div>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Current pool</p><p className="mt-2 text-xl font-bold">{formatGenAmount(economics.currentPool)} GEN</p></div>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Maximum pool</p><p className="mt-2 text-xl font-bold">{formatGenAmount(economics.maxPool)} GEN</p></div>
-                <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4"><p className="text-xs text-zinc-500">Selection probability</p><p className="mt-2 text-xl font-bold">{formatBpsAsPercent(economics.currentWinProbabilityBps)}</p></div>
-              </div>
-            )}
-            <div className="mt-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-              <p className="text-sm font-semibold text-amber-300">Current contract economics</p>
-              <p className="mt-2 text-xs leading-6 text-zinc-500">The deployed contract records entry payments and participant state, but it does not currently expose a prize-payout, platform-fee, or withdrawal mechanism. This page therefore shows the transparent pool amount only; it does not promise a payout the deployed contract cannot execute.</p>
-            </div>
-          </section>
+            <section className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
+              <p className="text-xs font-semibold uppercase tracking-widest text-violet-400">
+                Economics
+              </p>
+
+              <h2 className="mt-2 text-2xl font-bold">
+                Transparent pool
+              </h2>
+
+              <p className="mt-2 text-sm text-zinc-500">
+                Every participant pays the same entry
+                fee. Payment amount does not change
+                winner probability.
+              </p>
+
+              {economics && (
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4">
+                    <p className="text-xs text-zinc-500">
+                      Entry fee
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold">
+                      {formatGenAmount(
+                        economics.entryFee,
+                      )}{" "}
+                      GEN
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4">
+                    <p className="text-xs text-zinc-500">
+                      Current pool
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold">
+                      {formatGenAmount(
+                        economics.currentPool,
+                      )}{" "}
+                      GEN
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4">
+                    <p className="text-xs text-zinc-500">
+                      Maximum pool
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold">
+                      {formatGenAmount(
+                        economics.maxPool,
+                      )}{" "}
+                      GEN
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4">
+                    <p className="text-xs text-zinc-500">
+                      Selection probability
+                    </p>
+
+                    <p className="mt-2 text-xl font-bold">
+                      {formatBpsAsPercent(
+                        economics.currentWinProbabilityBps,
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {isAdminProlly && (
+                <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                  <p className="text-sm font-semibold text-emerald-300">
+                    Admin Prolly Reward Pool
+                  </p>
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs text-zinc-500">
+                        On-chain prize pool
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {formatGen(prizePool)} GEN
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-zinc-500">
+                        Reward per winner
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {onChain.winnersFinalized
+                          ? `${formatGen(
+                              prizePerWinner,
+                            )} GEN`
+                          : "Calculated after finalization"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-xs leading-5 text-zinc-500">
+                    Only winners finalized by GenLayer
+                    can claim an Admin Prolly reward.
+                    Each winner can claim once.
+                  </p>
+                </div>
+              )}
+
+              {!isAdminProlly && (
+                <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-5">
+                  <p className="text-sm font-semibold text-zinc-300">
+                    Sponsor Reward
+                  </p>
+
+                  <p className="mt-2 text-xs leading-6 text-zinc-500">
+                    Sponsor rewards are provided
+                    off-chain by the sponsor. Prolly does
+                    not process Sponsor reward payouts
+                    through this contract.
+                  </p>
+                </div>
+              )}
+            </section>
 
             <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Entry fee</p>
+                <p className="text-sm text-zinc-500">
+                  Entry fee
+                </p>
+
                 <p className="mt-2 text-2xl font-bold">
                   {formatGen(onChain.entryFee)} GEN
                 </p>
               </div>
+
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Participants</p>
-                <p className="mt-2 text-2xl font-bold">{participantCount}</p>
+                <p className="text-sm text-zinc-500">
+                  Participants
+                </p>
+
+                <p className="mt-2 text-2xl font-bold">
+                  {participantCount}
+                </p>
               </div>
+
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Winners</p>
+                <p className="text-sm text-zinc-500">
+                  Winners
+                </p>
+
                 <p className="mt-2 text-2xl font-bold">
                   {onChain.winnerCount.toString()}
                 </p>
               </div>
+
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-                <p className="text-sm text-zinc-500">Selection</p>
-                <p className="mt-2 text-2xl font-bold">Random</p>
+                <p className="text-sm text-zinc-500">
+                  Selection
+                </p>
+
+                <p className="mt-2 text-2xl font-bold">
+                  Random
+                </p>
               </div>
             </div>
 
@@ -515,7 +911,8 @@ export default function ProllyDetailsPage() {
               disabled={
                 joined ||
                 onChain.closed ||
-                onChain.participantCount >= onChain.maxParticipants ||
+                onChain.participantCount >=
+                  onChain.maxParticipants ||
                 joining ||
                 isConnecting
               }
@@ -523,7 +920,8 @@ export default function ProllyDetailsPage() {
                 joined
                   ? "bg-emerald-500 text-black"
                   : onChain.closed ||
-                      onChain.participantCount >= onChain.maxParticipants
+                      onChain.participantCount >=
+                        onChain.maxParticipants
                     ? "cursor-not-allowed bg-zinc-800 text-zinc-500"
                     : "bg-violet-500 text-white hover:bg-violet-400"
               }`}
@@ -534,62 +932,131 @@ export default function ProllyDetailsPage() {
                   ? "Joined — 1 Opportunity"
                   : onChain.closed
                     ? "Prolly Closed"
-                    : onChain.participantCount >= onChain.maxParticipants
+                    : onChain.participantCount >=
+                        onChain.maxParticipants
                       ? "Prolly Full"
                       : "Join Prolly"}
             </button>
 
-            {onChain.closed && !onChain.winnersFinalized && (
-              <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
-                <p className="text-sm font-semibold text-amber-300">
-                  Anyone can Authorize GenLayer for Random Selection
-                </p>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  The Prolly is closed and frozen. Authorizing GenLayer begins
-                  the authoritative random selection and finalizes the winners
-                  on-chain.
-                </p>
-                <div className="mt-4">
-                  <button
-                    onClick={handleFinalize}
-                    disabled={!address || finalizing}
-                    className="w-full rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
-                  >
-                    {finalizing ? "Authorizing GenLayer..." : "Authorize GenLayer"}
-                  </button>
-                </div>
-                {!address && (
-                  <p className="mt-3 text-xs text-zinc-600">
-                    Connect any wallet to authorize GenLayer.
+            {onChain.closed &&
+              !onChain.winnersFinalized && (
+                <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+                  <p className="text-sm font-semibold text-amber-300">
+                    Anyone can Authorize GenLayer for
+                    Random Selection
                   </p>
-                )}
-              </div>
-            )}
+
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">
+                    The Prolly is closed and frozen.
+                    Authorizing GenLayer begins the
+                    authoritative random selection and
+                    finalizes the winners on-chain.
+                  </p>
+
+                  <div className="mt-4">
+                    <button
+                      onClick={handleFinalize}
+                      disabled={!address || finalizing}
+                      className="w-full rounded-full bg-amber-400 px-5 py-3 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+                    >
+                      {finalizing
+                        ? "Authorizing GenLayer..."
+                        : "Authorize GenLayer"}
+                    </button>
+                  </div>
+
+                  {!address && (
+                    <p className="mt-3 text-xs text-zinc-600">
+                      Connect any wallet to authorize
+                      GenLayer.
+                    </p>
+                  )}
+                </div>
+              )}
 
             {onChain.winnersFinalized && (
               <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
                 <p className="text-sm font-semibold text-emerald-300">
                   Winners Finalized On-Chain
                 </p>
+
                 <p className="mt-2 text-sm leading-6 text-zinc-400">
-                  GenLayer has finalized the winners. The Battle only reveals
-                  these already-selected winners and never selects new ones.
+                  GenLayer has finalized the winners.
+                  The Battle only reveals these
+                  already-selected winners and never
+                  selects new ones.
                 </p>
               </div>
             )}
+
+            {isAdminProlly &&
+              onChain.winnersFinalized && (
+                <div className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5">
+                  <p className="text-sm font-semibold text-violet-300">
+                    Winner Reward
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">
+                    Each selected winner is entitled to
+                    exactly{" "}
+                    <span className="font-semibold text-white">
+                      {formatGen(
+                        prizePerWinner,
+                      )}{" "}
+                      GEN
+                    </span>
+                    .
+                  </p>
+
+                  {rewardClaimed ? (
+                    <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+                      Reward Claimed
+                    </div>
+                  ) : connectedWalletIsWinner ? (
+                    <button
+                      onClick={handleClaimReward}
+                      disabled={claiming || !canClaimReward}
+                      className="mt-4 w-full rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-black hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+                    >
+                      {claiming
+                        ? "Claiming Reward..."
+                        : `Claim ${formatGen(
+                            prizePerWinner,
+                          )} GEN`}
+                    </button>
+                  ) : (
+                    <p className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-xs leading-5 text-zinc-500">
+                      {address
+                        ? "This connected wallet is not one of the GenLayer-selected winners."
+                        : "Connect the winning wallet to claim its reward."}
+                    </p>
+                  )}
+                </div>
+              )}
 
             {onChain.closed && randomSeed && (
               <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
                 <p className="text-sm font-semibold text-zinc-300">
                   Transparent Randomness
                 </p>
+
                 <div className="mt-3 space-y-2 text-sm text-zinc-500">
-                  <p>✓ Participants recorded on-chain</p>
+                  <p>
+                    ✓ Participants recorded on-chain
+                  </p>
+
                   <p>✓ Pool frozen before selection</p>
+
                   <p>✓ Random seed generated</p>
-                  <p>✓ Winners selected without replacement</p>
+
+                  <p>
+                    ✓ Winners selected without
+                    replacement
+                  </p>
+
                   <p>✓ Winners stored on-chain</p>
                 </div>
+
                 <p className="mt-4 break-all font-mono text-xs text-zinc-700">
                   Seed: {randomSeed}
                 </p>
@@ -601,25 +1068,31 @@ export default function ProllyDetailsPage() {
                 <p className="text-sm font-semibold text-violet-300">
                   On-Chain Winners
                 </p>
+
                 <div className="mt-4 space-y-2">
                   {winnerUsernames.length === 0 ? (
                     <p className="text-sm text-zinc-500">
-                      Winners are finalized, but the winner list is still loading.
+                      Winners are finalized, but the
+                      winner list is still loading.
                     </p>
                   ) : (
-                    winnerUsernames.map((winner, index) => (
-                      <div
-                        key={`${winner.address}-${index}`}
-                        className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3"
-                      >
-                        <span className="font-semibold">
-                          {index + 1}. {winner.username}
-                        </span>
-                        <span className="text-xs text-emerald-400">
-                          ON-CHAIN WINNER
-                        </span>
-                      </div>
-                    ))
+                    winnerUsernames.map(
+                      (winner, index) => (
+                        <div
+                          key={`${winner.address}-${index}`}
+                          className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3"
+                        >
+                          <span className="font-semibold">
+                            {index + 1}.{" "}
+                            {winner.username}
+                          </span>
+
+                          <span className="text-xs text-emerald-400">
+                            ON-CHAIN WINNER
+                          </span>
+                        </div>
+                      ),
+                    )
                   )}
                 </div>
               </div>
@@ -643,7 +1116,8 @@ export default function ProllyDetailsPage() {
                   </Link>
                 ) : (
                   <div className="rounded-full border border-zinc-800 bg-zinc-900 py-4 text-center text-sm text-zinc-500">
-                    Battle is available to participants and replay viewers.
+                    Battle is available to participants
+                    and replay viewers.
                   </div>
                 )}
               </div>
