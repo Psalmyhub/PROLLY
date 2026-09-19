@@ -297,7 +297,14 @@ export default function ProllysPage() {
                     <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800"><div className="h-full rounded-full bg-violet-500 transition-all" style={{ width: `${progress}%` }} /></div>
 
                     <div className="mt-6 flex gap-3">
-                      {!isClosed && !isJoined ? (
+                      {prolly.creatorRole === "sponsor" ? (
+                        <Link
+                          href={`/prollys/${prolly.onChainId}`}
+                          className="flex-1 rounded-full bg-violet-500 px-5 py-3 text-center font-semibold hover:bg-violet-400"
+                        >
+                          View Sponsor Post
+                        </Link>
+                      ) : !isClosed && !isJoined ? (
                         <button onClick={() => handleJoinClick(prolly)} disabled={joining || isConnecting} className="flex-1 rounded-full bg-violet-500 px-5 py-3 font-semibold hover:bg-violet-400 disabled:opacity-50">{joining ? "Joining..." : "Join Prolly"}</button>
                       ) : !isClosed && isJoined ? (
                         <button disabled className="flex-1 cursor-not-allowed rounded-full border border-green-500/30 bg-green-500/10 px-5 py-3 font-semibold text-green-300">Joined</button>
