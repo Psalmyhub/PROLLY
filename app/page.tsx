@@ -28,7 +28,17 @@ export default function Home() {
           </a>
         </div>
 
-        <WalletButton />
+        <div className="flex items-center gap-3">
+          {address && (
+            <Link
+              href="/profile"
+              className="hidden rounded-full border border-zinc-700 px-4 py-2 text-sm font-medium hover:bg-zinc-800 sm:inline-flex"
+            >
+              Profile
+            </Link>
+          )}
+          <WalletButton />
+        </div>
       </nav>
 
       <section className="mx-auto flex max-w-7xl flex-col items-center px-6 pb-24 pt-20 text-center md:pt-32">
