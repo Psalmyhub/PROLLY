@@ -109,15 +109,15 @@ export default function SponsorPage() {
         </div>
       </nav>
 
-      <section className="mx-auto max-w-2xl px-6 py-16">
+      <section className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
         <p className="text-sm font-semibold uppercase tracking-widest text-violet-400">
           Sponsor
         </p>
 
-        <h1 className="mt-4 text-4xl font-bold">
+        <h1 className="mt-4 text-3xl font-bold sm:text-4xl">
           Become a Prolly sponsor.
         </h1>
-        <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-sm leading-6 text-zinc-400"><p className="font-semibold text-cyan-300">Two Sponsor Prolly formats</p><p className="mt-2">Link Prolly: a private sponsor-held access link distributed through your community or social channels. Manual Prolly: a sponsor-selected participant list. There are no sponsor or participant fees.</p></div>
+        <div className="mt-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-sm leading-6 text-zinc-400"><p className="font-semibold text-cyan-300">Two Sponsor Prolly formats</p><p className="mt-2">Link Prolly: a private sponsor-held access link distributed through your community or social channels. Manual Prolly: a sponsor-selected participant list. Sponsors pay a configurable GEN publishing fee; participants pay no entry fee.</p></div>
 
         {!isConnected ? (
           <div className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8">
@@ -146,7 +146,7 @@ export default function SponsorPage() {
             </h2>
             <p className="mt-3 leading-7 text-zinc-400">
               Your wallet is approved for the Sponsor workspace. Sponsor
-              campaign creation currently uses the Sponsor workspace prototype. The two sponsor formats are Link Prolly and Manual Prolly; both are free.
+              campaign creation currently uses the Sponsor workspace prototype. The two sponsor formats are Link Prolly and Manual Prolly. Participants do not pay an entry fee; sponsor publishing uses the platform's configurable GEN fee.
             </p>
             <Link
               href="/sponsor/dashboard"
